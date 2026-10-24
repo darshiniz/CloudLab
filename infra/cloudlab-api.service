@@ -1,0 +1,26 @@
+# /etc/systemd/system/cloudlab-api.service
+[Unit]
+Description=CloudLab API
+After=network-online.target mnt-cloudlab.mount
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudlab
+Group=cloudlab
+WorkingDirectory=/opt/cloudlab/backend
+EnvironmentFile=/etc/cloudlab/api.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=3
+# The API talks to workers over SSH using this user's key
+Environment=HOME=/home/cloudlab
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/cloudlab/.ssh /opt/cloudlab/backend/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# Installed packages (everyone runs npm install themselves)
+node_modules/
+
+# Build output
+dist/
+
+# Local settings (copy .env.example to .env)
+.env
+.env.local
+
+# Old version kept only as a local backup
+_old_version/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/

@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Role accent (Student blue by default). DashboardLayout overrides it per role. */
+:root {
+  --accent: 59 130 246;
+  color-scheme: dark;
+}
+[data-role='faculty'] { --accent: 20 184 166; }
+[data-role='admin'] { --accent: 139 92 246; }
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  h1, h2, h3, h4 { @apply text-white; }
+  ::selection { background: rgba(59, 130, 246, 0.35); }
+  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
+}
+
+@layer components {
+  .text-gradient { @apply bg-brand-gradient bg-clip-text text-transparent; }
+  .glass { @apply border border-line bg-card/70 backdrop-blur-md; }
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .glow-radial { background: radial-gradient(600px circle at 50% 0%, rgba(59,130,246,0.18), transparent 60%); }
+}
+
+/* Range slider (Inactivity Policy) */
+.cl-slider { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 9999px; outline: none;
+  background: linear-gradient(90deg, rgb(var(--accent)) var(--pct), rgba(255,255,255,0.08) var(--pct)); }
+.cl-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 9999px; background: #fff;
+  box-shadow: 0 0 0 4px rgb(var(--accent) / 0.35); cursor: pointer; }
+.cl-slider::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 9999px; background: #fff;
+  box-shadow: 0 0 0 4px rgb(var(--accent) / 0.35); cursor: pointer; }
+
+/* Recharts: dark tooltips/axes */
+.recharts-cartesian-axis-tick-value { fill: #6B7280; font-size: 11px; }
+.recharts-default-tooltip { border-radius: 12px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

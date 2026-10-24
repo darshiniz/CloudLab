@@ -1,0 +1,2368 @@
+{
+  "info": {
+    "name": "CloudLab API v1.0",
+    "description": "Every endpoint from CloudLab API Contract v1.0 (section 7). Run a Login request first: it stores the token. Each request checks the { data } / { error } envelope and the X-Request-Id header. Backend person: test every endpoint here BEFORE telling the frontend it is ready (contract section 10).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "envId",
+      "value": "env_5001"
+    },
+    {
+      "key": "projectId",
+      "value": "prj_20"
+    },
+    {
+      "key": "datasetId",
+      "value": "ds_mine_1"
+    }
+  ],
+  "item": [
+    {
+      "name": "7.1 Health and auth",
+      "item": [
+        {
+          "name": "GET /health \u00b7 Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login \u00b7 Login (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"anushka@gbs.edu\",\n  \"password\": \"student123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) { pm.collectionVariables.set('token', pm.response.json().data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login \u00b7 Login (faculty)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sonia@gbs.edu\",\n  \"password\": \"faculty123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) { pm.collectionVariables.set('token', pm.response.json().data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login \u00b7 Login (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@gbs.edu\",\n  \"password\": \"admin123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) { pm.collectionVariables.set('token', pm.response.json().data.token); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /auth/me \u00b7 Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout \u00b7 Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.2 Lab catalog",
+      "item": [
+        {
+          "name": "GET /labs \u00b7 List labs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/labs?includeDisabled=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "labs"
+              ],
+              "query": [
+                {
+                  "key": "includeDisabled",
+                  "value": "false",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /labs/lab_python \u00b7 Get lab",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/labs/lab_python",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "labs",
+                "lab_python"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /labs \u00b7 Create lab (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/labs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "labs"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"R Programming\",\n  \"type\": \"datascience\",\n  \"description\": \"R with tidyverse\",\n  \"tools\": [\n    \"R\",\n    \"tidyverse\"\n  ],\n  \"dockerImage\": \"cloudlab/r:1.0\",\n  \"limits\": {\n    \"cpu\": 2,\n    \"memoryGb\": 2,\n    \"storageGb\": 5\n  },\n  \"enabled\": true,\n  \"comingSoon\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /labs/lab_cloud \u00b7 Update lab (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/labs/lab_cloud",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "labs",
+                "lab_cloud"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.3 Environments",
+      "item": [
+        {
+          "name": "GET /environments \u00b7 List environments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "labType",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments \u00b7 Create environment (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/environments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"labId\": \"lab_python\",\n  \"name\": \"Pandas Practical 4\",\n  \"size\": \"standard\",\n  \"durationMinutes\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) { pm.test('Returns 202 (contract \u00a72 long actions)', () => pm.response.to.have.status(202)); pm.collectionVariables.set('envId', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /environments/{{envId}} \u00b7 Get environment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments/{{envId}}/start \u00b7 Start",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "start"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments/{{envId}}/stop \u00b7 Stop",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/stop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "stop"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments/{{envId}}/restart \u00b7 Restart",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/restart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "restart"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /environments/{{envId}} \u00b7 Delete (terminate)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments/{{envId}}/heartbeat \u00b7 Heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/heartbeat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "heartbeat"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /environments/{{envId}}/access \u00b7 Access URLs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/access",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "access"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /environments/{{envId}}/metrics \u00b7 Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "metrics"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /environments/{{envId}}/datasets \u00b7 Mount dataset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/environments/{{envId}}/datasets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "environments",
+                "{{envId}}",
+                "datasets"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"datasetId\": \"ds_titanic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.4 Projects and files",
+      "item": [
+        {
+          "name": "GET /projects \u00b7 List projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /projects \u00b7 Create project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sales Analysis 2\",\n  \"labType\": \"python\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) pm.collectionVariables.set('projectId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /projects/{{projectId}} \u00b7 Delete project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{{projectId}}/files \u00b7 List files",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/files?path=/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "/",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /projects/{{projectId}}/files \u00b7 Upload file",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/files",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "files"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": "",
+                  "src": ""
+                },
+                {
+                  "key": "path",
+                  "type": "text",
+                  "value": "/"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /projects/{{projectId}}/files/download \u00b7 Download file",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/files/download?path=/src/analysis.py",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "files",
+                "download"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "/src/analysis.py",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /projects/{{projectId}}/files \u00b7 Delete file",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/projects/{{projectId}}/files?path=/src/clean.py",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{{projectId}}",
+                "files"
+              ],
+              "query": [
+                {
+                  "key": "path",
+                  "value": "/src/clean.py",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /storage/usage \u00b7 Storage usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storage/usage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storage",
+                "usage"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.5 Datasets",
+      "item": [
+        {
+          "name": "GET /datasets \u00b7 List datasets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/datasets?scope=shared",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "datasets"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "shared",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /datasets \u00b7 Upload dataset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/datasets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "datasets"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "value": "",
+                  "src": ""
+                },
+                {
+                  "key": "name",
+                  "type": "text",
+                  "value": "my.csv"
+                },
+                {
+                  "key": "description",
+                  "type": "text",
+                  "value": ""
+                },
+                {
+                  "key": "scope",
+                  "type": "text",
+                  "value": "mine"
+                },
+                {
+                  "key": "courses",
+                  "type": "text",
+                  "value": "MCA-Python"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}",
+                  "if (ok) pm.collectionVariables.set('datasetId', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /datasets/{{datasetId}} \u00b7 Delete dataset",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/datasets/{{datasetId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "datasets",
+                "{{datasetId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.6 Student usage",
+      "item": [
+        {
+          "name": "GET /usage/me \u00b7 My usage",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/usage/me?weeks=8",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "usage",
+                "me"
+              ],
+              "query": [
+                {
+                  "key": "weeks",
+                  "value": "8",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.7 Faculty",
+      "item": [
+        {
+          "name": "GET /faculty/overview \u00b7 Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "overview"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/students \u00b7 Students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/students?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "students"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/students/usr_101 \u00b7 Student detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/students/usr_101",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "students",
+                "usr_101"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/activities \u00b7 List activities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/activities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "activities"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /faculty/activities \u00b7 Create activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/activities",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "activities"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Pandas basics\",\n  \"description\": \"Clean the titanic dataset\",\n  \"labId\": \"lab_python\",\n  \"dueDate\": \"2026-11-20T18:00:00Z\",\n  \"datasetId\": \"ds_titanic\",\n  \"assignTo\": {\n    \"type\": \"class\",\n    \"studentIds\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/activities/act_7 \u00b7 Get activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/activities/act_7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "activities",
+                "act_7"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/sessions \u00b7 Sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/sessions?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "sessions"
+              ],
+              "query": [
+                {
+                  "key": "labType",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /faculty/usage/summary \u00b7 Usage summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/faculty/usage/summary?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "faculty",
+                "usage",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7.8 Admin",
+      "item": [
+        {
+          "name": "GET /admin/overview \u00b7 Overview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "overview"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/infrastructure \u00b7 Infrastructure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/infrastructure",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "infrastructure"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/users \u00b7 List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /admin/users \u00b7 Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Student\",\n  \"email\": \"test@gbs.edu\",\n  \"role\": \"student\",\n  \"password\": \"password123\",\n  \"rollNo\": \"25P0320099\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /admin/users/usr_112 \u00b7 Update user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/usr_112",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "usr_112"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/policy \u00b7 Get policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "policy"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /admin/policy \u00b7 Update policy",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/policy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "policy"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"autoStopEnabled\": true,\n  \"inactivityMinutes\": 30,\n  \"maxLabsPerWorker\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/policy/auto-stop-log \u00b7 Auto-stop log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/policy/auto-stop-log?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "policy",
+                "auto-stop-log"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/analytics \u00b7 Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/analytics?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "analytics"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/analytics/export \u00b7 Analytics CSV export",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/analytics/export?",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "analytics",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/settings \u00b7 Get settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT /admin/settings \u00b7 Update settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"region\": \"asia-south1\",\n  \"defaults\": {\n    \"cpu\": 1,\n    \"memoryGb\": 1,\n    \"storageGb\": 5\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/audit-log \u00b7 Audit log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-log?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-log"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": false
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const ok = pm.response.code < 400;",
+                  "pm.test('Has X-Request-Id header (contract \u00a72)', () => pm.response.to.have.header('X-Request-Id'));",
+                  "if (pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('json')) {",
+                  "  const j = pm.response.json();",
+                  "  if (ok) pm.test('Success body is { data } (contract \u00a72)', () => pm.expect(j).to.have.property('data'));",
+                  "  else pm.test('Error body is { error: { code, message } } (contract \u00a72)', () => { pm.expect(j.error).to.have.property('code'); pm.expect(j.error).to.have.property('message'); });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
