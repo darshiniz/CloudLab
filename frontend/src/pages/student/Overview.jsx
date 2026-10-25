@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, FlaskConical, HardDrive, Play, Plus, Rocket, TerminalSquare, History } from 'lucide-react';
 import { api } from '../../services/api';
@@ -11,7 +11,7 @@ import { Button, Card, EmptyState, PageHeader, Skeleton, StatCard, StatusBadge, 
 import CreateLabModal from '../../components/labs/CreateLabModal';
 import InactivityWarning from '../../components/labs/InactivityWarning';
 import LabIcon from '../../components/labs/LabIcon';
-import { formatBytes, labLabel, timeAgo } from '../../utils/format';
+import { formatBytes, formatDateTime, labLabel, timeAgo } from '../../utils/format';
 
 const LIVE = [ENV_STATUS.RUNNING, ENV_STATUS.INACTIVE, ENV_STATUS.PROVISIONING];
 
@@ -24,6 +24,8 @@ export default function StudentOverview() {
   const usage = useQuery(() => api.getMyUsage(8), []);
   const storage = useQuery(() => api.getStorageUsage(), []);
   const labs = useQuery(() => api.listLabs(), []);
+  const assignments = useQuery(() => api.listAssignments(), [], { interval: 15000 });
+  const openTasks = (assignments.data?.data ?? []).filter((a) => a.status !== 'completed').slice(0, 3);
 
   const list = (envs.data?.data ?? []).filter((e) => e.status !== ENV_STATUS.TERMINATED);
   const active = list.filter((e) => LIVE.includes(e.status));
@@ -74,6 +76,22 @@ export default function StudentOverview() {
         <StatCard label="Hours used" value={usage.data?.totalHours} decimals={1} suffix=" h" loading={usage.loading} icon={Clock} trend={usage.data?.hoursPerWeek.map((w) => w.hours)} hint="Last 8 weeks" />
         <StatCard label="Storage used" value={st ? st.usedBytes / 1024 ** 3 : undefined} decimals={1} suffix={st ? ` / ${st.limitBytes / 1024 ** 3} GB` : ''} loading={storage.loading} icon={HardDrive} hint={st ? `${Math.round((st.usedBytes / st.limitBytes) * 100)}% of your quota` : undefined} />
       </div>
+
+      {openTasks.length > 0 && (
+        <Card title="Assigned to you" className="mb-6" action={<Link to="/student/assignments" className="text-sm text-accent hover:underline">View all</Link>}>
+          <ul className="divide-y divide-line">
+            {openTasks.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{a.title}</p>
+                  <p className={`text-xs ${a.overdue ? 'text-red-300' : 'text-gray-500'}`}>Due {formatDateTime(a.dueDate)}{a.overdue ? ' · overdue' : ''}</p>
+                </div>
+                <StatusBadge status={a.status} label={a.status === 'inProgress' ? 'In progress' : 'Not started'} />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-5">
         <Card title="Continue where you left off" className="lg:col-span-3">

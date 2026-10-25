@@ -48,7 +48,7 @@ function createApp(ctx) {
   }));
   api.use(express.json({ limit: '200kb' }));
   api.use(bodyRequired);
-  for (const name of ['auth', 'labs', 'environments', 'projects', 'datasets', 'usage', 'faculty', 'admin']) {
+  for (const name of ['auth', 'labs', 'environments', 'projects', 'datasets', 'usage', 'assignments', 'faculty', 'admin']) {
     api.use(require(`./routes/${name}`)(ctx));
   }
   api.use(notFoundHandler);

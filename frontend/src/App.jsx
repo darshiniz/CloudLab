@@ -8,6 +8,7 @@ import NotFound from './pages/public/NotFound';
 import StudentOverview from './pages/student/Overview';
 import Catalog from './pages/student/Catalog';
 import MyLabs from './pages/student/MyLabs';
+import Assignments from './pages/student/Assignments';
 import Workspace from './pages/student/Workspace';
 import Projects from './pages/student/Projects';
 import StudentDatasets from './pages/student/Datasets';
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/student" element={guard(['student'], <DashboardLayout role="student" />)}>
         <Route index element={<StudentOverview />} />
         <Route path="catalog" element={<Catalog />} />
+        <Route path="assignments" element={<Assignments />} />
         <Route path="labs" element={<MyLabs />} />
         <Route path="projects" element={<Projects />} />
         <Route path="datasets" element={<StudentDatasets />} />

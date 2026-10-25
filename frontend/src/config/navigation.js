@@ -8,6 +8,7 @@ export const NAV = {
   student: [
     { to: '/student', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/student/catalog', label: 'Lab Catalog', icon: BookOpen },
+    { to: '/student/assignments', label: 'Assignments', icon: ClipboardList },
     { to: '/student/labs', label: 'My Labs', icon: TerminalSquare },
     { to: '/student/projects', label: 'Projects & Files', icon: FolderOpen },
     { to: '/student/datasets', label: 'Datasets', icon: Database },

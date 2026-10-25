@@ -14,7 +14,7 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/,
 const MOCK_SETTING = String(import.meta.env.VITE_USE_MOCKS ?? 'true').trim().toLowerCase();
 const MOCK_DELAY = Number(import.meta.env.VITE_MOCK_DELAY_MS ?? 350);
 
-export const MODULES = ['auth', 'labs', 'environments', 'projects', 'datasets', 'usage', 'faculty', 'admin'];
+export const MODULES = ['auth', 'labs', 'environments', 'projects', 'datasets', 'usage', 'assignments', 'faculty', 'admin'];
 
 export function isMocked(module) {
   if (MOCK_SETTING === 'true') return true;
@@ -156,6 +156,8 @@ export const api = {
   getFacultyOverview: () => one(request('faculty', 'GET', '/faculty/overview')),
   listStudents: (query) => request('faculty', 'GET', '/faculty/students', { query }),
   getStudent: (id) => one(request('faculty', 'GET', `/faculty/students/${id}`)),
+  // Activities assigned to the signed-in student (addition, see backend docs/CONTRACT_NOTES.md)
+  listAssignments: () => request('assignments', 'GET', '/assignments'),
   listActivities: () => request('faculty', 'GET', '/faculty/activities'),
   createActivity: (activity) => one(request('faculty', 'POST', '/faculty/activities', { body: activity })),
   getActivity: (id) => one(request('faculty', 'GET', `/faculty/activities/${id}`)),

@@ -544,6 +544,24 @@ const routes = [
       ],
     });
   }],
+  // Activities assigned to the signed-in student, with that student's own progress
+  ['GET', '/assignments', [S], ({ user }) => ok(db.activities
+    .filter((a) => a.assignTo.type === 'class' || a.assignTo.studentIds.includes(user.id))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .map((a) => {
+      const lab = db.labs.find((l) => l.id === a.labId);
+      const ds = a.datasetId ? db.datasets.find((d) => d.id === a.datasetId) : null;
+      const mine = db.environments.filter((e) => e.userId === user.id && e.labId === a.labId && e.createdAt >= a.createdAt).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+      const live = mine.find((e) => [ENV_STATUS.REQUESTED, ENV_STATUS.QUEUED, ENV_STATUS.PROVISIONING, ENV_STATUS.RUNNING, ENV_STATUS.INACTIVE].includes(e.status));
+      const status = live ? 'inProgress' : mine.length ? 'completed' : 'assigned';
+      return {
+        id: a.id, title: a.title, description: a.description, dueDate: a.dueDate, createdAt: a.createdAt,
+        assignedBy: db.users.find((u) => u.id === a.createdBy)?.name ?? null,
+        lab: lab ? { id: lab.id, name: lab.name, type: lab.type } : { id: a.labId, name: a.labId, type: null },
+        dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
+        status, overdue: status !== 'completed' && new Date(a.dueDate) < new Date(), environmentId: (live || mine[0])?.id ?? null,
+      };
+    }))],
   ['GET', '/faculty/activities', [F, A], () => paginate([...db.activities].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), { pageSize: 100 })],
   ['POST', '/faculty/activities', [F], ({ user, body }) => {
     validate([
