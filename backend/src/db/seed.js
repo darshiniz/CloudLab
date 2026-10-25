@@ -58,7 +58,7 @@ async function seed(ctx) {
     const src = path.join(SEED_DATA, d.file);
     if (!fs.existsSync(src)) continue;
     const dest = path.join(storage.datasetsDir, d.file);
-    await fsp.copyFile(src, dest);
+    await require('stream/promises').pipeline(require('fs').createReadStream(src), require('fs').createWriteStream(dest));
     await db('datasets').insert({
       id: d.id, name: d.file, description: d.description, scope: 'shared', size_bytes: (await fsp.stat(dest)).size,
       rows: await storage.countCsvRows(dest), courses: JSON.stringify(d.courses), uploaded_by: faculty.id, uploaded_at: now,

@@ -2,6 +2,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
+const { pipeline } = require('stream/promises');
 const { E } = require('../lib/errors');
 
 const IGNORE_FOR_ACTIVITY = new Set(['node_modules', '.git', 'venv', '.venv', '__pycache__', '.cache', 'target', '.gradle', '.m2']);
@@ -197,7 +198,8 @@ class Storage {
     await this.assertInside(base, dir);
     const dest = path.join(dir, name);
     await this.assertInside(base, dest);
-    await fsp.copyFile(tmpPath, dest);
+    // Stream the bytes instead of fs.copyFile: copyFile also calls chmod on the new file, which Azure Blob (blobfuse2) and gcsfuse refuse with EACCES/EPERM.
+    await pipeline(fs.createReadStream(tmpPath), fs.createWriteStream(dest));
     await fsp.rm(tmpPath, { force: true });
     try { await fsp.chmod(dest, 0o666); } catch { /* ignore */ }
     const st = await fsp.stat(dest);
