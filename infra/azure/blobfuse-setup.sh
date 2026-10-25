@@ -32,6 +32,7 @@ file_cache:
   path: $CACHE
   timeout-sec: 2
   allow-non-empty-temp: true
+  refresh-sec: 2        # re-check the cloud copy, so edits made on another VM or in the portal show up within seconds
 attr_cache:
   timeout-sec: 2
 azstorage:
