@@ -212,6 +212,27 @@ async function migrate(knex) {
     TS(t, 'resolved_at').nullable();
     t.index(['alert_key']);
   });
+  await createTable(knex, 'scaling_state', (t) => {
+    t.string('node_id', 32).primary();
+    t.string('state', 16).notNullable().defaultTo('on'); // on | starting | stopping | off
+    TS(t, 'changed_at').notNullable();
+  });
+
+  await createTable(knex, 'scaling_config', (t) => {
+    t.integer('id').primary();
+    t.integer('auto_enabled').notNullable().defaultTo(0);
+  });
+
+  await createTable(knex, 'scaling_events', (t) => {
+    t.increments('seq');
+    TS(t, 'at').notNullable();
+    t.string('node_id', 32).notNullable();
+    t.string('action', 16).notNullable(); // scale_out | scale_in
+    t.string('source', 16).notNullable(); // auto | manual ("trigger" is a reserved word in MySQL)
+    t.text('reason').notNullable();
+    t.integer('ok').notNullable().defaultTo(1);
+    t.index(['at']);
+  });
 }
 
 module.exports = { migrate };

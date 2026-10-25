@@ -165,6 +165,10 @@ export const api = {
   // 7.8 Admin
   getAdminOverview: () => one(request('admin', 'GET', '/admin/overview')),
   getInfrastructure: () => one(request('admin', 'GET', '/admin/infrastructure')),
+  getScaling: () => one(request('admin', 'GET', '/admin/scaling')),
+  setAutoScaling: (autoEnabled) => one(request('admin', 'PUT', '/admin/scaling', { body: { autoEnabled } })),
+  scaleOutWorker: (id) => one(request('admin', 'POST', `/admin/scaling/workers/${id}/scale-out`)),
+  scaleInWorker: (id) => one(request('admin', 'POST', `/admin/scaling/workers/${id}/scale-in`)),
   listUsers: (query) => request('admin', 'GET', '/admin/users', { query }),
   createUser: (user) => one(request('admin', 'POST', '/admin/users', { body: user })),
   updateUser: (id, changes) => one(request('admin', 'PATCH', `/admin/users/${id}`, { body: changes })),

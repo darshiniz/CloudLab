@@ -45,10 +45,17 @@ class Monitor {
 
   async _sampleWorker(w, now) {
     const { db, driver, cfg } = this.ctx;
+    // A worker the autoscaler stopped (or is starting) is offline on purpose: no alarm, nothing to ping.
+    const power = await this.ctx.scaler.powerOf(w.id);
+    if (power === 'off' || power === 'stopping') {
+      await db('nodes').where({ id: w.id }).update({ status: NODE_STATUS.OFFLINE, cpu_percent: 0, memory_percent: 0 });
+      await this.resolveAlert(`offline:${w.id}`);
+      return;
+    }
     const ping = await driver.ping(w);
     if (!ping.ok) {
       await db('nodes').where({ id: w.id }).update({ status: NODE_STATUS.OFFLINE, cpu_percent: 0, memory_percent: 0 });
-      await this.ensureAlert(`offline:${w.id}`, SEVERITY.CRITICAL, `${w.name} is unreachable`);
+      if (power !== 'starting') await this.ensureAlert(`offline:${w.id}`, SEVERITY.CRITICAL, `${w.name} is unreachable`);
       return;
     }
     await this.resolveAlert(`offline:${w.id}`);
@@ -81,6 +88,8 @@ class Monitor {
     const status = nodeMem > 90 || nodeCpu > 95 || (ping.latencyMs ?? 0) > 3000 ? NODE_STATUS.DEGRADED : NODE_STATUS.ONLINE;
     await db('nodes').where({ id: w.id }).update({ cpu_percent: nodeCpu, memory_percent: nodeMem, status, last_seen_at: now });
     await db('metric_samples').insert({ node_id: w.id, cpu: nodeCpu, mem: nodeMem, at: now });
+    // Only now is the node row "online", so queued labs can be placed on it straight away.
+    if (power === 'starting') await this.ctx.scaler.markOn(w.id);
 
     for (const [kind, v, label] of [['mem', nodeMem, 'memory'], ['cpu', nodeCpu, 'CPU']]) {
       const key = `${kind}:${w.id}`;

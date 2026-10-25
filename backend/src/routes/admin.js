@@ -62,8 +62,9 @@ module.exports = (ctx) => {
     const policy = await ctx.policy.row();
     const used = await ctx.nodes.slotsUsedMap();
     const rows = await db('nodes').orderBy('kind').orderBy('id'); // control first (alphabetical), then workers
-    const nodes = rows.map((n) => ctx.nodes.serialize(n, used.get(n.id) || 0, policy.max_labs_per_worker));
-    const workers = rows.filter((n) => n.kind === 'worker' && n.enabled);
+    const states = await ctx.scaler.states();
+    const nodes = rows.map((n) => ({ ...ctx.nodes.serialize(n, used.get(n.id) || 0, policy.max_labs_per_worker), ...(n.kind === 'worker' ? { power: states.get(n.id)?.state || 'on' } : {}) }));
+    const workers = rows.filter((n) => n.kind === 'worker' && n.enabled && (states.get(n.id)?.state || 'on') === 'on'); // stopped/starting workers add no capacity yet
     const queued = await ctx.envs._q().where('e.status', S.QUEUED).orderBy('e.queued_seq');
     const sizes = await ctx.reports.folderSizes();
     ok(res, {
@@ -113,6 +114,25 @@ module.exports = (ctx) => {
     const total = Number((await db('auto_stop_log').count({ n: '*' }).first()).n);
     const rows = await db('auto_stop_log').orderBy('seq', 'desc').limit(pageSize).offset(offset);
     list(res, rows.map((l) => ({ environmentId: l.env_id, userName: l.user_name, labType: l.lab_type, stoppedAt: pub(l.stopped_at), idleMinutes: l.idle_minutes })), { page, pageSize, total });
+  });
+
+  // ---- elasticity: start/stop worker VMs (additions, see CONTRACT_NOTES.md) ----------------------------------
+  r.get('/admin/scaling', async (req, res) => ok(res, await ctx.scaler.status()));
+  r.put('/admin/scaling', async (req, res) => {
+    const body = parse(z.object({ autoEnabled: z.boolean() }), req.body);
+    await ctx.scaler.setAuto(body.autoEnabled);
+    await ctx.audit.log(req.user, 'scaling.auto', body.autoEnabled ? 'on' : 'off');
+    ok(res, await ctx.scaler.status());
+  });
+  r.post('/admin/scaling/workers/:id/scale-out', async (req, res) => {
+    await ctx.scaler.scaleOut(req.params.id, { source: 'manual', reason: `Started by ${req.user.name}` });
+    await ctx.audit.log(req.user, 'scaling.scale_out', req.params.id);
+    ok(res, await ctx.scaler.status());
+  });
+  r.post('/admin/scaling/workers/:id/scale-in', async (req, res) => {
+    await ctx.scaler.scaleIn(req.params.id, { source: 'manual', reason: `Stopped by ${req.user.name}` });
+    await ctx.audit.log(req.user, 'scaling.scale_in', req.params.id);
+    ok(res, await ctx.scaler.status());
   });
 
   const rangeQ = z.object({ from: optDate, to: optDate });

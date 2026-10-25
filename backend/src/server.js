@@ -16,7 +16,9 @@ async function main() {
   });
 
   // Labs that were mid-provisioning when the process last died cannot continue: mark them failed so students can retry.
-  await ctx.envs.recover();
+  // With several API instances behind a load balancer only the one running the background jobs does this;
+  // the reconcile job fails provisioning that nobody has touched for PROVISIONING_STALE_MS on behalf of the others.
+  if (cfg.jobs.enabled) await ctx.envs.recover();
   await new Promise((r) => server.listen(cfg.port, r));
   ctx.log.info({ port: cfg.port, driver: cfg.driver.kind, db: cfg.db.client }, 'CloudLab API listening');
   if (cfg.jobs.enabled) ctx.jobs.start();

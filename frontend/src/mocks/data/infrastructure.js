@@ -8,6 +8,13 @@ export const nodes = [
   { id: 'worker-2', name: 'Worker VM 2', kind: 'worker', machineType: 'e2-medium', region: 'asia-south1', status: 'degraded', cpuPercent: 58, memoryPercent: 87, slotsUsed: 3, slotsTotal: 4 },
 ];
 
+// Elasticity (addition, see backend docs/CONTRACT_NOTES.md): power state of each worker VM and the scaling log.
+export const scaling = {
+  autoEnabled: false,
+  workers: { 'worker-1': { power: 'on', since: ago(600) }, 'worker-2': { power: 'on', since: ago(600) } },
+  events: [],
+};
+
 // Shape: Policy (section 5)
 export const policy = { autoStopEnabled: true, inactivityMinutes: 30, maxLabsPerWorker: 4 };
 

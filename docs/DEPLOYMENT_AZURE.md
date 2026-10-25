@@ -285,3 +285,39 @@ Updating the code later: `git pull` on the control VM, copy `backend` to `/opt/c
 | Lab stuck "failed" at Create container | `journalctl -u cloudlab-api`: usually image missing on that worker (`docker images`), SSH host key not accepted, or `docker ps` over SSH failing |
 | Workspace shows 502 | The control VM cannot reach `WORKER_n_IP:port`: wrong private IP in `api.env`, or the lab container is not running |
 | Files are not saved | Mount missing on that worker: `df /mnt/cloudlab`, `systemctl status cloudlab-blobfuse` |
+
+
+---
+
+# Part 2: Elasticity, load balancing and CI (optional extras)
+
+## A. Autoscaler (scale out / scale in worker VMs)
+
+Control VM, once (use your own resource group and VM names):
+
+```bash
+PRINCIPAL=$(az vm show -g cloudlab-rg -n cloudlab-control --query identity.principalId -o tsv)
+SUB=$(az account show --query id -o tsv)
+az role assignment create --assignee-object-id $PRINCIPAL --assignee-principal-type ServicePrincipal \
+  --role "Virtual Machine Contributor" --scope /subscriptions/$SUB/resourceGroups/cloudlab-rg
+```
+
+Then add to `/etc/cloudlab/api.env`: `CLOUD_PROVIDER=azure`, `AZURE_RESOURCE_GROUP=cloudlab-rg`, `WORKER_1_VM_NAME=...`, `WORKER_2_VM_NAME=...` and `sudo systemctl restart cloudlab-api`.
+Open **Admin > Infrastructure > Elasticity**: manual Scale out / Scale in buttons and the Automatic scaling switch.
+Rules: scale out when a lab has waited 60 s in the queue and a worker is stopped; scale in when a worker has had no labs for 10 min (at least 1 worker always stays on).
+
+## B. HTTP load balancing (nginx, two API instances)
+
+```bash
+sudo bash infra/azure/lb.sh on        # starts API instance 2 (port 5001) and balances 5000/5001 with least_conn
+curl -sI https://YOUR-DNS-NAME/api/v1/health | grep -i x-served-by    # repeat: the value changes
+sudo systemctl stop cloudlab-api-2    # failover demo: the site keeps working
+sudo bash infra/azure/lb.sh off
+```
+
+Only instance 1 runs the background jobs (monitor, auto-stop, queue, autoscaler).
+
+## C. CI and deployment
+
+`.github/workflows/ci.yml` runs on every push: backend tests, frontend build, shell script syntax check and the three lab image builds (see the Actions tab on GitHub).
+To deploy new code on the control VM: `cd ~/cloudlab && bash infra/deploy.sh`.

@@ -128,7 +128,8 @@ class EnvironmentService {
     const workers = await trx('nodes').where({ kind: 'worker', enabled: 1 }).forUpdate().orderBy('id');
     const used = await this.ctx.nodes.slotsUsedMap(trx);
     const queued = Number((await trx('environments').where({ status: S.QUEUED }).count({ n: '*' }).first()).n);
-    let cands = workers.filter((w) => w.status !== 'offline' && (used.get(w.id) || 0) < policy.max_labs_per_worker);
+    const asleep = new Set((await trx('scaling_state').whereIn('state', ['stopping', 'off']).select('node_id')).map((r) => r.node_id)); // being shut down by the autoscaler
+    let cands = workers.filter((w) => w.status !== 'offline' && !asleep.has(w.id) && (used.get(w.id) || 0) < policy.max_labs_per_worker);
     if (!ignoreQueue && queued > 0) cands = []; // first come, first served
     cands.sort((a, b) => (a.id === env.worker_id ? -1 : b.id === env.worker_id ? 1 : (used.get(a.id) || 0) - (used.get(b.id) || 0)));
     for (const w of cands) {

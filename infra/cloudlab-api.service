@@ -1,7 +1,7 @@
 # /etc/systemd/system/cloudlab-api.service
 [Unit]
 Description=CloudLab API
-After=network-online.target mnt-cloudlab.mount
+After=network-online.target cloudlab-blobfuse.service
 Wants=network-online.target
 
 [Service]

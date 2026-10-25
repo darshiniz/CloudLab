@@ -15,7 +15,7 @@ import { environments } from './data/environments';
 import { projects, files } from './data/projects';
 import { datasets } from './data/datasets';
 import { activities } from './data/activities';
-import { nodes, policy, settings, storage, alerts, autoStopLog, auditLog } from './data/infrastructure';
+import { nodes, policy, settings, storage, alerts, autoStopLog, auditLog, scaling } from './data/infrastructure';
 import { ago, daysAgo, MIN } from './data/time';
 
 // ── Mock database ────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ const GIB = 1024 ** 3;
 const STORE_KEY = 'cloudlab.mockdb.v3';
 const MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const seed = () => ({
-  db: structuredClone({ users, labs, environments, projects, files, datasets, activities, nodes, policy, settings, storage, alerts, autoStopLog, auditLog }),
+  db: structuredClone({ users, labs, environments, projects, files, datasets, activities, nodes, policy, settings, storage, alerts, autoStopLog, auditLog, scaling }),
   storageUsed: { usr_101: Math.round(1.2 * GIB) }, // "Storage used 1.2/5 GB"
   seq: 6000,
 });
@@ -76,6 +76,15 @@ function paginate(items, query) {
 
 function audit(actor, action, target) {
   db.auditLog.unshift({ id: nextId('aud'), actorId: actor.id, actorName: actor.name, action, target, at: nowIso() });
+}
+
+function scalingStatus() {
+  return {
+    provider: 'mock', available: true, autoEnabled: db.scaling.autoEnabled,
+    rules: { scaleOutAfterSeconds: 60, scaleInAfterMinutes: 10, minWorkers: 1, cooldownSeconds: 120 },
+    workers: db.nodes.filter((n) => n.kind === 'worker').map((n) => ({ id: n.id, name: n.name, vmName: `cloudlab-${n.id}`, power: db.scaling.workers[n.id].power, since: db.scaling.workers[n.id].since, status: db.scaling.workers[n.id].power === 'on' ? n.status : 'offline', slotsUsed: n.slotsUsed })),
+    events: db.scaling.events.slice(0, 25),
+  };
 }
 
 function validate(rules) {
@@ -594,12 +603,42 @@ const routes = [
   ['GET', '/admin/infrastructure', [A], () => {
     const ws = db.nodes.filter((n) => n.kind === 'worker');
     const usedGb = +db.storage.folders.reduce((s, f) => s + f.usedGb, 0).toFixed(1);
+    const live = ws.filter((w) => db.scaling.workers[w.id].power === 'on');
     return ok({
-      nodes: db.nodes,
-      clusterCapacity: { slotsUsed: ws.reduce((s, w) => s + w.slotsUsed, 0), slotsTotal: ws.reduce((s, w) => s + w.slotsTotal, 0) },
+      nodes: db.nodes.map((n) => (n.kind === 'worker' ? { ...n, power: db.scaling.workers[n.id].power, status: db.scaling.workers[n.id].power === 'on' ? n.status : 'offline' } : n)),
+      clusterCapacity: { slotsUsed: live.reduce((s, w) => s + w.slotsUsed, 0), slotsTotal: live.reduce((s, w) => s + w.slotsTotal, 0) },
       queue: { length: queue().length, items: queue().map((e) => ({ environmentId: e.id, userName: e.userName, labType: e.labType, waitingSince: e.createdAt })) },
       storage: { bucket: db.storage.bucket, usedGb, totalGb: db.storage.totalGb, folders: db.storage.folders },
     });
+  }],
+  ['GET', '/admin/scaling', [A], () => ok(scalingStatus())],
+  ['PUT', '/admin/scaling', [A], ({ user, body }) => {
+    validate([['autoEnabled', 'must be true or false', typeof body?.autoEnabled !== 'boolean']]);
+    db.scaling.autoEnabled = body.autoEnabled;
+    audit(user, 'scaling.auto', body.autoEnabled ? 'on' : 'off');
+    return ok(scalingStatus());
+  }],
+  ['POST', '/admin/scaling/workers/:id/scale-out', [A], ({ user, params }) => {
+    const w = db.scaling.workers[params.id];
+    if (!w) fail(404, E.NOT_FOUND, 'Worker not found');
+    if (w.power !== 'off') fail(409, E.INVALID_STATE, `${params.id} is already ${w.power}`);
+    w.power = 'starting'; w.since = nowIso();
+    db.scaling.events.unshift({ id: nextId('evt'), at: nowIso(), workerId: params.id, action: 'scale_out', source: 'manual', reason: `Started by ${user.name}. VM start requested`, ok: true });
+    audit(user, 'scaling.scale_out', params.id);
+    setTimeout(() => { w.power = 'on'; w.since = nowIso(); db.scaling.events.unshift({ id: nextId('evt'), at: nowIso(), workerId: params.id, action: 'scale_out', source: 'auto', reason: 'Worker is online and accepting labs', ok: true }); }, 4000);
+    return ok(scalingStatus());
+  }],
+  ['POST', '/admin/scaling/workers/:id/scale-in', [A], ({ user, params }) => {
+    const w = db.scaling.workers[params.id];
+    const node = db.nodes.find((n) => n.id === params.id);
+    if (!w) fail(404, E.NOT_FOUND, 'Worker not found');
+    if (w.power !== 'on') fail(409, E.INVALID_STATE, `${params.id} is not on (it is ${w.power})`);
+    if (node.slotsUsed > 0) fail(409, E.INVALID_STATE, `${node.name} still runs ${node.slotsUsed} lab${node.slotsUsed > 1 ? 's' : ''}. Stop them first`);
+    if (Object.values(db.scaling.workers).filter((x) => x.power === 'on').length < 2) fail(409, E.INVALID_STATE, 'At least one worker must stay on');
+    w.power = 'off'; w.since = nowIso();
+    db.scaling.events.unshift({ id: nextId('evt'), at: nowIso(), workerId: params.id, action: 'scale_in', source: 'manual', reason: `Stopped by ${user.name}. VM deallocation requested`, ok: true });
+    audit(user, 'scaling.scale_in', params.id);
+    return ok(scalingStatus());
   }],
   ['GET', '/admin/users', [A], ({ query }) => {
     const q = (query.search || '').toLowerCase();

@@ -10,6 +10,8 @@ const { PolicyService } = require('./services/policy');
 const { NodeService } = require('./services/nodes');
 const { EnvironmentService } = require('./services/environments');
 const { Reports } = require('./services/reports');
+const { Scaler } = require('./services/scaler');
+const { createCloud } = require('./cloud');
 const { Jobs } = require('./jobs');
 
 /** Builds every service and wires them together. Nothing listens or starts timers here. */
@@ -26,14 +28,18 @@ async function createContext(cfg, { log } = {}) {
   ctx.nodes = new NodeService(ctx);
   ctx.envs = new EnvironmentService(ctx);
   ctx.reports = new Reports(ctx);
+  ctx.cloud = createCloud(cfg, ctx.log, ctx);
+  ctx.scaler = new Scaler(ctx);
   ctx.jobs = new Jobs(ctx);
   await ctx.policy.init();
   await ctx.nodes.init();
+  await ctx.scaler.init();
   return ctx;
 }
 
 async function closeContext(ctx) {
   ctx.jobs.stop();
+  ctx.cloud?.close?.();
   await ctx.driver.closeAll?.();
   await ctx.db.destroy();
 }

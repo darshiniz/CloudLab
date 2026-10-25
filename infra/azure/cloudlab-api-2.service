@@ -1,0 +1,26 @@
+# /etc/systemd/system/cloudlab-api-2.service  -  second API instance (port 5001) for the nginx load-balancing demo.
+# Same code and database as the first instance. It does NOT run the background jobs (the first one does).
+[Unit]
+Description=CloudLab API (instance 2)
+After=network-online.target cloudlab-blobfuse.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cloudlab
+Group=cloudlab
+WorkingDirectory=/opt/cloudlab/backend
+EnvironmentFile=/etc/cloudlab/api.env
+# Later files override earlier ones: this one sets PORT, INSTANCE_ID and turns the jobs off.
+EnvironmentFile=/etc/cloudlab/api-2.env
+Restart=always
+RestartSec=3
+Environment=HOME=/home/cloudlab
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/cloudlab/.ssh /opt/cloudlab/backend/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

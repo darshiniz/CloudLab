@@ -77,13 +77,36 @@ function loadConfig(env = process.env) {
         id: 'worker-1', name: 'Worker VM 1',
         dockerHost: str('WORKER_1_DOCKER_HOST', ''), // e.g. ssh://cloudlab@10.0.0.3
         internalIp: str('WORKER_1_IP', '127.0.0.1'),
+        vmName: str('WORKER_1_VM_NAME', 'cloudlab-worker-1'), // cloud VM that the autoscaler starts/stops
       },
       {
         id: 'worker-2', name: 'Worker VM 2',
         dockerHost: str('WORKER_2_DOCKER_HOST', ''),
         internalIp: str('WORKER_2_IP', '127.0.0.1'),
+        vmName: str('WORKER_2_VM_NAME', 'cloudlab-worker-2'),
       },
     ],
+    // Which API process this is (shown in the X-Served-By response header; useful behind a load balancer).
+    instanceId: str('INSTANCE_ID', `api-${int('PORT', 5000)}`),
+
+    // Autoscaler: starts a stopped worker VM when labs wait in the queue, stops an idle one.
+    //   CLOUD_PROVIDER=azure  uses the VM's managed identity (role "Virtual Machine Contributor" on the resource group)
+    //   CLOUD_PROVIDER=mock   simulated VMs for development and tests;  none = scaling unavailable
+    cloud: {
+      provider: str('CLOUD_PROVIDER', isProd ? 'none' : 'mock'),
+      azureSubscriptionId: str('AZURE_SUBSCRIPTION_ID', ''), // read from the instance metadata service when empty
+      azureResourceGroup: str('AZURE_RESOURCE_GROUP', ''),
+      mockBootMs: int('MOCK_VM_BOOT_MS', 4000),
+    },
+    autoscale: {
+      enabledAtStart: bool('AUTOSCALE_ENABLED', false), // initial value only; the admin switch is stored in the database
+      intervalMs: int('AUTOSCALE_INTERVAL_MS', 15_000),
+      scaleOutAfterSec: int('SCALE_OUT_AFTER_SEC', 60), // labs must have been waiting this long
+      scaleInIdleMin: int('SCALE_IN_IDLE_MIN', 10), // a worker must have had no labs for this long
+      minWorkers: int('MIN_WORKERS', 1),
+      cooldownSec: int('SCALE_COOLDOWN_SEC', 120),
+      startTimeoutSec: int('WORKER_START_TIMEOUT_SEC', 600),
+    },
     machineType: str('MACHINE_TYPE', 'e2-medium'),
     region: str('GCP_REGION', 'asia-south1'),
     hostPortMin: int('HOST_PORT_MIN', 20000),
@@ -139,6 +162,7 @@ function loadConfig(env = process.env) {
     if (problems.length) throw new Error('Unsafe production configuration:\n - ' + problems.join('\n - '));
   }
   if (!['mysql', 'sqlite'].includes(cfg.db.client)) throw new Error('DB_CLIENT must be "sqlite" or "mysql"');
+  if (!['mock', 'azure', 'none'].includes(cfg.cloud.provider)) throw new Error('CLOUD_PROVIDER must be "mock", "azure" or "none"');
   if (!['mock', 'docker'].includes(cfg.driver.kind)) throw new Error('DRIVER must be "mock" or "docker"');
   return cfg;
 }

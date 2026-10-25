@@ -11,7 +11,7 @@ const { createWorkspaceProxy } = require('./proxy/workspace');
 const NEEDS_BODY = [
   ['POST', /^\/auth\/login$/], ['POST', /^\/environments$/], ['POST', /^\/environments\/[^/]+\/datasets$/],
   ['POST', /^\/labs$/], ['PATCH', /^\/labs\/[^/]+$/], ['POST', /^\/projects$/],
-  ['POST', /^\/admin\/users$/], ['PATCH', /^\/admin\/users\/[^/]+$/], ['PUT', /^\/admin\/(policy|settings)$/],
+  ['POST', /^\/admin\/users$/], ['PATCH', /^\/admin\/users\/[^/]+$/], ['PUT', /^\/admin\/(policy|settings|scaling)$/],
   ['POST', /^\/faculty\/activities$/],
 ];
 const bodyRequired = (req, res, next) => {
@@ -28,6 +28,7 @@ function createApp(ctx) {
   app.disable('x-powered-by');
   if (cfg.trustProxy) app.set('trust proxy', 1);
   app.use(requestId);
+  app.use((req, res, next) => { res.setHeader('X-Served-By', cfg.instanceId); next(); }); // which API process answered (load balancing demo)
   app.use(pinoHttp({
     logger: ctx.log, genReqId: (req) => req.id,
     customLogLevel: (req, res, err) => (err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info'),
