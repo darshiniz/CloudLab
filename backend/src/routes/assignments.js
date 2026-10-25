@@ -25,6 +25,20 @@ module.exports = (ctx) => {
   const { db, storage } = ctx;
   r.use('/assignments', authenticate(ctx), requireRole(ROLE.STUDENT));
 
+  /** Why a student cannot submit (or update) right now: closed by faculty, past due with late work refused, or already graded. */
+  const lockOf = (a, sub, now = Date.now()) => {
+    let reason = null;
+    if (a.closed) reason = 'closed';
+    else if ((a.late_policy ?? 'allow') === 'block' && new Date(a.due_date).getTime() < now) reason = 'pastDue';
+    else if (sub?.graded_at) reason = 'graded';
+    return { canSubmit: !reason, lockedReason: reason };
+  };
+  const LOCK_MESSAGE = {
+    closed: 'Your faculty has stopped accepting submissions for this activity.',
+    pastDue: 'The due date has passed and late submissions are not accepted for this activity.',
+    graded: 'This submission has already been graded. Ask your faculty to reopen it if you need to change it.',
+  };
+
   const mineOnly = (activities, me) => activities.filter((a) => a.assign_type === 'class' || ser.parseJson(a.student_ids, []).includes(me));
 
   async function view(me, activities) {
@@ -50,6 +64,8 @@ module.exports = (ctx) => {
         lab: lab ? { id: lab.id, name: lab.name, type: lab.type } : { id: a.lab_id, name: a.lab_id, type: null },
         dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
         status,
+        latePolicy: a.late_policy ?? 'allow', closed: !!a.closed,
+        ...lockOf(a, sub),
         maxMarks: a.max_marks ?? 100,
         submission: sub ? {
           paths: ser.parseJson(sub.paths, []), submittedAt: pub(sub.submitted_at), note: sub.note ?? null, late: new Date(sub.submitted_at) > new Date(a.due_date),
@@ -79,6 +95,8 @@ module.exports = (ctx) => {
     const a = await db('activities').where({ id: req.params.id }).first();
     if (!a || !mineOnly([a], req.user.id).length) throw E.notFound('Activity not found');
     const existing = await db('submissions').where({ activity_id: a.id, user_id: req.user.id }).first();
+    const lock = lockOf(a, existing);
+    if (!lock.canSubmit) throw E.invalidState(LOCK_MESSAGE[lock.lockedReason]);
     const paths = [...new Set(body.paths)];
     const copy = await storage.snapshotSubmission(req.user.id, a.id, paths); // throws 422 before anything is recorded
     const at = nowIso();

@@ -24,7 +24,7 @@ test('students see only their activities; status follows their own work and the 
   assert.ok(await find(a, all.id));
 
   const row = await find(d, some.id);
-  assert.deepEqual(Object.keys(row).sort(), ['assignedBy', 'createdAt', 'dataset', 'description', 'dueDate', 'environmentId', 'id', 'lab', 'liveEnvironmentId', 'maxMarks', 'overdue', 'status', 'submission', 'title']);
+  assert.deepEqual(Object.keys(row).sort(), ['assignedBy', 'canSubmit', 'closed', 'createdAt', 'dataset', 'description', 'dueDate', 'environmentId', 'id', 'lab', 'latePolicy', 'liveEnvironmentId', 'lockedReason', 'maxMarks', 'overdue', 'status', 'submission', 'title']);
   assert.equal(row.status, 'assigned');
   assert.equal(row.submission, null);
   assert.equal(row.lab.type, 'python');
@@ -171,4 +171,62 @@ test('handing in is limited in size and a submission without files is allowed', 
     assert.equal(empty.status, 200);
     assert.deepEqual(empty.body.data, [], 'submitted without files: faculty see an empty folder, never the live workspace');
   } finally { await small.close(); }
+});
+
+test('submission rules: late policy, stop receiving, graded lock and reopen', async () => {
+  const f = await t.as(t.emails.faculty);
+  const d = await t.as(t.emails.darshini);
+  const get = async (id) => (await d.get('/assignments')).body.data.find((x) => x.id === id);
+  const submit = (id, body = {}) => d.post(`/assignments/${id}/submit`, body);
+
+  // 1. default: late work is accepted and flagged
+  const open = await mk(f, { title: 'Late ok', dueDate: new Date(Date.now() + 500).toISOString(), assignTo: { type: 'class', studentIds: [] } });
+  assert.equal(open.latePolicy, 'allow');
+  assert.equal(open.closed, false);
+  await new Promise((r) => setTimeout(r, 700));
+  const lateOk = await submit(open.id);
+  assert.equal(lateOk.status, 201);
+  assert.equal(lateOk.body.data.submission.late, true);
+
+  // 2. latePolicy block: refused after the due date, fine before it
+  const strictBefore = await mk(f, { title: 'Strict', latePolicy: 'block', assignTo: { type: 'class', studentIds: [] } });
+  assert.equal((await get(strictBefore.id)).canSubmit, true);
+  assert.equal((await submit(strictBefore.id)).status, 201);
+  const strictPast = await mk(f, { title: 'Strict past', latePolicy: 'block', dueDate: new Date(Date.now() + 500).toISOString(), assignTo: { type: 'class', studentIds: [] } });
+  await new Promise((r) => setTimeout(r, 700));
+  assert.equal((await get(strictPast.id)).lockedReason, 'pastDue');
+  const refused = await submit(strictPast.id);
+  assert.equal(refused.status, 409);
+  assert.match(refused.body.error.message, /late submissions are not accepted/);
+
+  // faculty can extend the due date to let work in again, or switch the policy
+  assert.equal((await f.patch(`/faculty/activities/${strictPast.id}`, { dueDate: '2099-01-01T00:00:00Z' })).status, 200);
+  assert.equal((await submit(strictPast.id)).status, 201);
+
+  // 3. faculty stops receiving submissions, then resumes
+  const act = await mk(f, { title: 'Closable', assignTo: { type: 'class', studentIds: [] } });
+  const closed = await f.patch(`/faculty/activities/${act.id}`, { closed: true });
+  assert.equal(closed.body.data.closed, true);
+  assert.equal((await get(act.id)).lockedReason, 'closed');
+  assert.equal((await submit(act.id)).status, 409);
+  await f.patch(`/faculty/activities/${act.id}`, { closed: false });
+  assert.equal((await submit(act.id, { note: 'v1' })).status, 201);
+
+  // 4. once graded the student cannot change it; faculty reopen takes the grade back
+  assert.equal((await f.put(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/grade`, { marks: 80, feedback: 'ok' })).status, 200);
+  const locked = await submit(act.id, { note: 'v2' });
+  assert.equal(locked.status, 409);
+  assert.match(locked.body.error.message, /already been graded/);
+  assert.equal((await get(act.id)).lockedReason, 'graded');
+  const re = await f.post(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/reopen`);
+  assert.equal(re.status, 200);
+  assert.equal(re.body.data.marks, null);
+  assert.equal((await submit(act.id, { note: 'v2' })).status, 200);
+
+  // 5. only the owning faculty can change rules; validation
+  assert.equal((await d.patch(`/faculty/activities/${act.id}`, { closed: true })).status, 403);
+  assert.equal((await (await t.as(t.emails.admin)).patch(`/faculty/activities/${act.id}`, { closed: true })).status, 403);
+  assert.equal((await f.patch(`/faculty/activities/${act.id}`, {})).status, 422);
+  assert.equal((await f.patch(`/faculty/activities/${act.id}`, { latePolicy: 'maybe' })).status, 422);
+  assert.equal((await f.patch('/faculty/activities/act_nope', { closed: true })).status, 404);
 });

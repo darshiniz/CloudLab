@@ -33,3 +33,12 @@ Use two browser windows (one normal, one private) so you can be faculty and stud
 * 16:55 IST: labs still running are stopped automatically (Admin > Active Environments shows them Stopped; the student gets the message "stopped by the daily scheduled shutdown").
 * 17:00 IST: all three VMs shut down; 08:50 IST next weekday they start again. In Admin > Infrastructure the scaling log shows lines with source "schedule".
 * Friday 16:30 IST: `ls -lh /mnt/cloudlab/archive` shows a new `workspaces-<date>.tar.gz`; only the newest 4 are kept. To test now: `sudo systemctl start cloudlab-backup`.
+
+## 5. Submission rules and grading
+
+1. **Faculty** > Assign Activity: create an activity with "After the due date" = *Do not accept late submissions* and Maximum marks 20. The row says "No late submissions".
+2. **Student** submits before the due date, then updates the submission: allowed (it replaces the copy).
+3. **Faculty** > View submissions > Grade: enter marks above 20 (refused), then 15 with feedback. **Student** sees 15/20 and the feedback, and the Submit button is replaced by "graded, ask your faculty to reopen".
+4. **Faculty** presses **Reopen** for that student (confirm). Marks and feedback clear; the student can resubmit and is graded again.
+5. **Faculty** presses **Stop submissions** on the activity: the student sees "stopped accepting submissions". **Resume submissions** brings it back.
+6. Late policy *Accept late*: after the due date the student can still submit and the faculty row says "Submitted late".

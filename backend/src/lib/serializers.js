@@ -58,6 +58,7 @@ const dataset = (r) => ({
 const activity = (r, progress) => ({
   id: r.id, title: r.title, description: r.description, labId: r.lab_id, datasetId: r.dataset_id ?? null,
   dueDate: pub(r.due_date), maxMarks: r.max_marks ?? 100,
+  latePolicy: r.late_policy ?? 'allow', closed: !!r.closed,
   assignTo: { type: r.assign_type, studentIds: r.assign_type === 'students' ? parseJson(r.student_ids, []) : [] },
   progress, createdBy: r.created_by, createdAt: pub(r.created_at),
 });

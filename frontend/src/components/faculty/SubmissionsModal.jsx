@@ -86,6 +86,7 @@ function GradeForm({ activity, row, onSaved, onCancel }) {
 }
 
 export default function SubmissionsModal({ activity, onClose }) {
+  const toast = useToast();
   const subs = useQuery(() => (activity ? api.listSubmissions(activity.id) : Promise.resolve({ data: [] })), [activity?.id]);
   const [student, setStudent] = useState(null);
   const [grading, setGrading] = useState(null);
@@ -111,6 +112,12 @@ export default function SubmissionsModal({ activity, onClose }) {
               <StatusBadge status={r.status} label={r.late && r.status === 'submitted' ? 'Submitted late' : LABEL[r.status]} />
               {r.status === 'submitted' && <Button size="sm" variant="secondary" icon={Eye} onClick={() => setStudent(r)}>View files</Button>}
               {r.status === 'submitted' && <Button size="sm" variant="secondary" icon={Award} onClick={() => setGrading(grading === r.studentId ? null : r.studentId)}>{r.marks != null ? 'Edit marks' : 'Grade'}</Button>}
+              {r.status === 'submitted' && r.marks != null && (
+                <Button size="sm" variant="secondary" onClick={async () => {
+                  if (!window.confirm(`Take back ${r.name}'s grade so they can update their submission? Their marks and feedback will be cleared.`)) return;
+                  try { await api.reopenSubmission(activity.id, r.studentId); toast.success(`${r.name} can update the submission now`); subs.refresh(); } catch (err) { toast.apiError(err); }
+                }}>Reopen</Button>
+              )}
               {grading === r.studentId && <GradeForm activity={activity} row={r} onCancel={() => setGrading(null)} onSaved={() => { setGrading(null); subs.refresh(); }} />}
             </li>
           ))}

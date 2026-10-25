@@ -260,6 +260,16 @@ const studentHours = (userId) => {
 };
 
 // ── Routes: [method, path, allowedRoles | 'public' | 'any', handler] ────────
+/** Why a student cannot submit right now (mirrors the real API). */
+function mockLock(a, sub) {
+  let reason = null;
+  if (a.closed) reason = 'closed';
+  else if ((a.latePolicy ?? 'allow') === 'block' && new Date(a.dueDate) < new Date()) reason = 'pastDue';
+  else if (sub?.gradedAt) reason = 'graded';
+  return { canSubmit: !reason, lockedReason: reason };
+}
+const LOCK_MESSAGE = { closed: 'Your faculty has stopped accepting submissions for this activity.', pastDue: 'The due date has passed and late submissions are not accepted for this activity.', graded: 'This submission has already been graded. Ask your faculty to reopen it if you need to change it.' };
+
 /** One activity as the signed-in student sees it (shared by the mock assignments endpoints). */
 function assignmentView(a, user) {
   const lab = db.labs.find((l) => l.id === a.labId);
@@ -273,7 +283,7 @@ function assignmentView(a, user) {
     lab: lab ? { id: lab.id, name: lab.name, type: lab.type } : { id: a.labId, name: a.labId, type: null },
     dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
     status: sub ? 'submitted' : mine.length ? 'inProgress' : 'assigned',
-    maxMarks: a.maxMarks ?? 100,
+    maxMarks: a.maxMarks ?? 100, latePolicy: a.latePolicy ?? 'allow', closed: !!a.closed, ...mockLock(a, sub),
     submission: sub ? { paths: sub.paths ?? [], submittedAt: sub.submittedAt, note: sub.note, late: new Date(sub.submittedAt) > new Date(a.dueDate), marks: sub.marks ?? null, feedback: sub.feedback ?? null, gradedAt: sub.gradedAt ?? null } : null,
     overdue: !sub && new Date(a.dueDate) < new Date(),
     liveEnvironmentId: live?.id ?? null, environmentId: (live || mine[0])?.id ?? null,
@@ -597,6 +607,8 @@ const routes = [
     if ((body?.note ?? '').length > 1000) fail(422, E.VALIDATION_ERROR, 'Validation failed', { note: 'is too long' });
     db.submissions ??= [];
     const existing = db.submissions.find((x) => x.activityId === a.id && x.userId === user.id);
+    const lock = mockLock(a, existing);
+    if (!lock.canSubmit) fail(409, E.INVALID_STATE, LOCK_MESSAGE[lock.lockedReason]);
     const paths = Array.isArray(body?.paths) ? body.paths : [];
     if (existing) Object.assign(existing, { note: body?.note?.trim() || null, submittedAt: nowIso(), paths });
     else {
@@ -643,6 +655,18 @@ const routes = [
     return { status: 200, blob: new Blob([`# ${name}\n# Mock download from CloudLab\n`], { type: 'text/plain' }), filename: name };
   }],
   ['GET', '/faculty/activities', [F, A], () => paginate([...db.activities].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), { pageSize: 100 })],
+  ['PATCH', '/faculty/activities/:id', [F], ({ params, body }) => {
+    const a = db.activities.find((x) => x.id === params.id) ?? notFound('Activity');
+    if (typeof body?.closed === 'boolean') a.closed = body.closed;
+    if (['allow', 'block'].includes(body?.latePolicy)) a.latePolicy = body.latePolicy;
+    if (body?.dueDate) a.dueDate = body.dueDate;
+    return ok(a);
+  }],
+  ['POST', '/faculty/activities/:id/submissions/:studentId/reopen', [F], ({ params }) => {
+    const sub = (db.submissions ?? []).find((x) => x.activityId === params.id && x.userId === params.studentId) ?? notFound('Submission');
+    Object.assign(sub, { marks: null, feedback: null, gradedAt: null });
+    return ok({ studentId: params.studentId, status: 'submitted', marks: null });
+  }],
   ['POST', '/faculty/activities', [F], ({ user, body }) => {
     validate([
       ['title', 'is required', !body?.title?.trim()],
@@ -653,7 +677,7 @@ const routes = [
     const count = body.assignTo.type === 'class' ? db.users.filter((u) => u.role === S && u.status === 'active').length : body.assignTo.studentIds.length;
     const act = {
       id: nextId('act'), title: body.title.trim(), description: body.description ?? '', labId: body.labId, datasetId: body.datasetId || null,
-      dueDate: body.dueDate, maxMarks: Number.isInteger(body.maxMarks) ? body.maxMarks : 100, assignTo: { type: body.assignTo.type, studentIds: body.assignTo.type === 'students' ? body.assignTo.studentIds : [] },
+      dueDate: body.dueDate, maxMarks: Number.isInteger(body.maxMarks) ? body.maxMarks : 100, latePolicy: body.latePolicy === 'block' ? 'block' : 'allow', closed: false, assignTo: { type: body.assignTo.type, studentIds: body.assignTo.type === 'students' ? body.assignTo.studentIds : [] },
       progress: { assigned: count, inProgress: 0, completed: 0 }, createdBy: user.id, createdAt: nowIso(),
     };
     db.activities.push(act);

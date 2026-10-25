@@ -91,6 +91,8 @@ Faculty (own activities) and admin (read-only):
 
 * `POST /faculty/activities` accepts `maxMarks` (integer 1-1000, default 100). Activity objects carry `maxMarks`.
 * `PUT /faculty/activities/:id/submissions/:studentId/grade` `{ marks, feedback? }`: faculty (owner of the activity) only; 404 until the student has submitted; 422 when `marks` is outside `0..maxMarks`. Returns the student's submission row. Grading again replaces the previous grade; a student resubmitting does not erase it.
+
+**Submission rules** (faculty-controlled): activities carry `latePolicy` (`allow` = late submissions accepted and flagged late, default; `block` = nothing accepted after the due date) and `closed` (faculty stopped receiving). `PATCH /faculty/activities/:id` `{ closed?, latePolicy?, dueDate? }` (owner only). `POST /faculty/activities/:id/submissions/:studentId/reopen` clears marks and feedback so a graded student can resubmit. The student view of an activity has `canSubmit` and `lockedReason` (`closed` > `pastDue` > `graded`); `POST .../submit` answers 409 `INVALID_STATE` with the reason text when locked. Before grading (and while open) a student can update the submission any time.
 * Submission rows (faculty) gain `marks`, `feedback`, `gradedAt`, `maxMarks`. The student's `GET /assignments` rows gain `maxMarks` and `submission.{marks, feedback, gradedAt}` (null until graded).
 
 ## Other additions

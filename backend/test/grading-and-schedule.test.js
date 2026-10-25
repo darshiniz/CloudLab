@@ -38,7 +38,7 @@ test('marks and feedback: faculty grade a submission, the student sees it, valid
   const other = (await a.get('/assignments')).body.data.find((x) => x.id === act.id);
   assert.equal(other.submission, null, 'another student sees no marks');
 
-  // regrading replaces; resubmitting keeps the marks until faculty regrade
+  // regrading replaces the grade (a graded submission is locked for the student; see the rules test in assignments.test.js)
   await grade(t.ids.darshini, { marks: 18 });
   await d.post(`/assignments/${act.id}/submit`, { note: 'updated' });
   const rows = (await f.get(`/faculty/activities/${act.id}/submissions`)).body.data;

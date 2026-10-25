@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Award, CalendarClock, File as FileIcon, Folder, CheckCircle2, ClipboardList, Database, ExternalLink, Play, Send, Terminal, User } from 'lucide-react';
+import { Award, CalendarClock, Lock, File as FileIcon, Folder, CheckCircle2, ClipboardList, Database, ExternalLink, Play, Send, Terminal, User } from 'lucide-react';
 import { api } from '../../services/api';
 import useQuery from '../../hooks/useQuery';
 import { useToast } from '../../context/ToastContext';
@@ -10,6 +10,11 @@ import CreateLabModal from '../../components/labs/CreateLabModal';
 import LabIcon from '../../components/labs/LabIcon';
 import { cx, formatDateTime, timeAgo } from '../../utils/format';
 
+const LOCK_TEXT = {
+  closed: 'Your faculty has stopped accepting submissions.',
+  pastDue: 'The due date has passed and late submissions are not accepted.',
+  graded: 'Graded. Ask your faculty to reopen it if you need to change it.',
+};
 const STATUS_LABEL = { assigned: 'Not started', inProgress: 'In progress', submitted: 'Submitted' };
 
 function Assignment({ a, onStart, onOpen, onMyLabs, onSubmit }) {
@@ -51,7 +56,9 @@ function Assignment({ a, onStart, onOpen, onMyLabs, onSubmit }) {
         {a.status === 'inProgress' && (a.liveEnvironmentId
           ? <Button size="sm" variant="secondary" icon={ExternalLink} onClick={() => onOpen(a)}>Open lab</Button>
           : <Button size="sm" variant="secondary" icon={Terminal} onClick={onMyLabs}>Resume in My Labs</Button>)}
-        <Button size="sm" variant={submitted ? 'secondary' : 'primary'} icon={Send} onClick={() => onSubmit(a)}>{submitted ? 'Update submission' : 'Submit'}</Button>
+        {a.canSubmit
+          ? <Button size="sm" variant={submitted ? 'secondary' : 'primary'} icon={Send} onClick={() => onSubmit(a)}>{submitted ? 'Update submission' : 'Submit'}</Button>
+          : <span className="flex items-center gap-2 text-xs text-yellow-300"><Lock className="h-3.5 w-3.5" />{LOCK_TEXT[a.lockedReason]}</span>}
       </div>
     </motion.li>
   );

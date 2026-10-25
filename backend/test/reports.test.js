@@ -73,7 +73,7 @@ test('activities: faculty create, validation, progress, admin read-only', async 
   const body = { title: 'Loops', description: 'Practise loops', labId: 'lab_python', dueDate: '2026-12-01T10:00:00Z', datasetId: 'ds_iris', assignTo: { type: 'students', studentIds: [t.ids.darshini, t.ids.anushka] } };
   const c = await f.post('/faculty/activities', body);
   assert.equal(c.status, 201);
-  assert.deepEqual(Object.keys(c.body.data).sort(), ['assignTo', 'createdAt', 'createdBy', 'datasetId', 'description', 'dueDate', 'id', 'labId', 'maxMarks', 'progress', 'title']);
+  assert.deepEqual(Object.keys(c.body.data).sort(), ['assignTo', 'closed', 'createdAt', 'createdBy', 'datasetId', 'description', 'dueDate', 'id', 'labId', 'latePolicy', 'maxMarks', 'progress', 'title']);
   assert.deepEqual(c.body.data.assignTo.studentIds.sort(), [t.ids.anushka, t.ids.darshini].sort());
   assert.deepEqual(c.body.data.progress, { assigned: 2, inProgress: 0, completed: 0 });
 

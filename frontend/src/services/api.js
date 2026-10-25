@@ -168,6 +168,8 @@ export const api = {
   listSubmissions: (activityId) => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions`),
   listSubmissionFiles: (activityId, studentId, path = '/') => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions/${studentId}/files`, { query: { path } }),
   downloadSubmissionFile: (activityId, studentId, path) => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions/${studentId}/files/download`, { query: { path }, download: true }),
+  updateActivity: (id, changes) => one(request('faculty', 'PATCH', `/faculty/activities/${id}`, { body: changes })),
+  reopenSubmission: (activityId, studentId) => one(request('faculty', 'POST', `/faculty/activities/${activityId}/submissions/${studentId}/reopen`)),
   createActivity: (activity) => one(request('faculty', 'POST', '/faculty/activities', { body: activity })),
   getActivity: (id) => one(request('faculty', 'GET', `/faculty/activities/${id}`)),
   listSessions: (query) => request('faculty', 'GET', '/faculty/sessions', { query }),

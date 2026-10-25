@@ -16,6 +16,7 @@ const activitySchema = z.object({
   dueDate: z.string().refine((s) => !Number.isNaN(Date.parse(s)), { error: 'must be an ISO date' }),
   datasetId: z.string().min(1).nullish(),
   maxMarks: z.number().int().min(1).max(1000).default(100),
+  latePolicy: z.enum(['allow', 'block']).default('allow'), // after the due date: accept (flagged late) or refuse
   assignTo: z.object({
     type: z.enum(['class', 'students']),
     studentIds: z.array(z.string()).max(500).default([]),
@@ -128,6 +129,37 @@ module.exports = (ctx) => {
     res.download(file, require('path').basename(file), (err) => { if (err && !res.headersSent) throw E.notFound('File not found'); });
   });
 
+  // Faculty control over what the activity accepts: stop/resume submissions, late policy, new due date.
+  r.patch('/faculty/activities/:id', requireRole(ROLE.FACULTY), async (req, res) => {
+    const a = await db('activities').where({ id: req.params.id, created_by: req.user.id }).first();
+    if (!a) throw E.notFound('Activity not found');
+    const b = parse(z.object({
+      closed: z.boolean().optional(),
+      latePolicy: z.enum(['allow', 'block']).optional(),
+      dueDate: z.string().refine((s) => !Number.isNaN(Date.parse(s)), { error: 'must be an ISO date' }).optional(),
+    }), req.body ?? {});
+    const upd = {};
+    if (b.closed !== undefined) upd.closed = b.closed ? 1 : 0;
+    if (b.latePolicy !== undefined) upd.late_policy = b.latePolicy;
+    if (b.dueDate !== undefined) upd.due_date = new Date(b.dueDate).toISOString();
+    if (!Object.keys(upd).length) throw E.validation({ body: 'nothing to change' });
+    await db('activities').where({ id: a.id }).update(upd);
+    await ctx.audit.log(req.user, 'activity.update', `${a.id} ${JSON.stringify(b)}`);
+    const fresh = await db('activities').where({ id: a.id }).first();
+    ok(res, ser.activity(fresh, (await progressFor([fresh])).get(fresh.id)));
+  });
+
+  // Take back a grade so the student may update their submission (they are graded again afterwards).
+  r.post('/faculty/activities/:id/submissions/:studentId/reopen', requireRole(ROLE.FACULTY), async (req, res) => {
+    const a = await db('activities').where({ id: req.params.id, created_by: req.user.id }).first();
+    if (!a) throw E.notFound('Activity not found');
+    const sub = await db('submissions').where({ activity_id: a.id, user_id: req.params.studentId }).first();
+    if (!sub) throw E.notFound('This student has not submitted this activity');
+    await db('submissions').where({ id: sub.id }).update({ marks: null, feedback: null, graded_by: null, graded_at: null });
+    await ctx.audit.log(req.user, 'assignment.reopen', `${a.id} ${req.params.studentId}`);
+    ok(res, (await submissionRows(a)).find((x) => x.studentId === req.params.studentId));
+  });
+
   r.post('/faculty/activities', requireRole(ROLE.FACULTY), async (req, res) => {
     const b = parse(activitySchema, req.body);
     const lab = await db('labs').where({ id: b.labId }).first();
@@ -146,7 +178,7 @@ module.exports = (ctx) => {
     }
     const row = {
       id: newId('activity'), title: b.title, description: b.description, lab_id: b.labId, dataset_id: b.datasetId ?? null,
-      due_date: new Date(b.dueDate).toISOString(), max_marks: b.maxMarks, assign_type: b.assignTo.type, student_ids: JSON.stringify(studentIds),
+      due_date: new Date(b.dueDate).toISOString(), max_marks: b.maxMarks, late_policy: b.latePolicy, assign_type: b.assignTo.type, student_ids: JSON.stringify(studentIds),
       created_by: req.user.id, created_at: nowIso(),
     };
     await db('activities').insert(row);

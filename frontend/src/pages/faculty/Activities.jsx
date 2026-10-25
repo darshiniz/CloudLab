@@ -10,9 +10,9 @@ import SubmissionsModal from '../../components/faculty/SubmissionsModal';
 import { cx, formatDateTime, timeAgo } from '../../utils/format';
 
 const tomorrow = () => { const d = new Date(Date.now() + 7 * 864e5); d.setHours(18, 0, 0, 0); return d.toISOString().slice(0, 16); };
-const EMPTY = { title: '', description: '', labId: 'lab_python', dueDate: tomorrow(), datasetId: '', maxMarks: 100, assignType: 'class', studentIds: [] };
+const EMPTY = { title: '', description: '', labId: 'lab_python', dueDate: tomorrow(), datasetId: '', maxMarks: 100, latePolicy: 'allow', assignType: 'class', studentIds: [] };
 
-function ActivityRow({ a, labs, datasets, onOpen }) {
+function ActivityRow({ a, labs, datasets, onOpen, onToggle, canEdit }) {
   const { assigned, inProgress, completed } = a.progress;
   const started = inProgress + completed;
   const status = completed === assigned ? 'completed' : started ? 'inProgress' : 'assigned';
@@ -30,6 +30,8 @@ function ActivityRow({ a, labs, datasets, onOpen }) {
             <span className={cx('flex items-center gap-1', overdue && 'text-red-300')}><CalendarClock className="h-3.5 w-3.5" />Due {formatDateTime(a.dueDate)}</span>
             {ds && <span className="flex items-center gap-1"><Database className="h-3.5 w-3.5" />{ds.name}</span>}
             <span>{a.assignTo.type === 'class' ? 'Whole class' : `${a.assignTo.studentIds.length} students`}</span>
+            <span>{a.maxMarks} marks</span>
+            <span>{a.closed ? 'Not accepting submissions' : a.latePolicy === 'block' ? 'No late submissions' : 'Late submissions accepted'}</span>
           </p>
         </div>
         <StatusBadge status={status} />
@@ -40,9 +42,12 @@ function ActivityRow({ a, labs, datasets, onOpen }) {
           <div className="bg-status-running transition-all duration-700" style={{ width: `${(completed / assigned) * 100}%` }} />
           <div className="bg-status-provisioning transition-all duration-700" style={{ width: `${(inProgress / assigned) * 100}%` }} />
         </div>
-        <div className="mt-2 flex gap-2 text-[11px]">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
           <StatusBadge status="assigned" label={`Assigned ${assigned}`} /><StatusBadge status="inProgress" label={`In progress ${inProgress}`} /><StatusBadge status="completed" label={`Submitted ${completed}`} />
-          <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpen(a)}>View submissions</Button>
+          <span className="ml-auto flex gap-2">
+            {canEdit && <Button size="sm" variant="secondary" onClick={() => onToggle(a)}>{a.closed ? 'Resume submissions' : 'Stop submissions'}</Button>}
+            <Button size="sm" variant="secondary" onClick={() => onOpen(a)}>View submissions</Button>
+          </span>
         </div>
       </div>
     </li>
@@ -71,12 +76,20 @@ export default function Activities() {
     try {
       await api.createActivity({
         title: form.title, description: form.description, labId: form.labId, dueDate: new Date(form.dueDate).toISOString(),
-        datasetId: form.datasetId || null, maxMarks: Number(form.maxMarks) || 100, assignTo: { type: form.assignType, studentIds: form.assignType === 'students' ? form.studentIds : [] },
+        datasetId: form.datasetId || null, maxMarks: Number(form.maxMarks) || 100, latePolicy: form.latePolicy, assignTo: { type: form.assignType, studentIds: form.assignType === 'students' ? form.studentIds : [] },
       });
       toast.success('Activity assigned');
       setForm(EMPTY); setErrors({});
       activities.refresh();
     } catch (err) { setErrors(err.details ?? {}); toast.apiError(err); } finally { setSaving(false); }
+  };
+
+  const toggleClosed = async (a) => {
+    try {
+      await api.updateActivity(a.id, { closed: !a.closed });
+      toast.success(a.closed ? 'Submissions resumed' : 'Submissions stopped. Students can no longer submit.');
+      activities.refresh();
+    } catch (err) { toast.apiError(err); }
   };
 
   const toggleStudent = (id) => setForm((f) => ({ ...f, studentIds: f.studentIds.includes(id) ? f.studentIds.filter((x) => x !== id) : [...f.studentIds, id] }));
@@ -96,6 +109,12 @@ export default function Activities() {
                 <Field label="Due date" htmlFor="a-due" error={errors.dueDate}><Input id="a-due" type="datetime-local" value={form.dueDate} onChange={set('dueDate')} invalid={!!errors.dueDate} /></Field>
               </div>
               <Field label="Maximum marks" htmlFor="a-max" error={errors.maxMarks} hint="Marks are entered per student under View submissions"><Input id="a-max" type="number" min="1" max="1000" value={form.maxMarks} onChange={set('maxMarks')} invalid={!!errors.maxMarks} /></Field>
+              <Field label="After the due date" htmlFor="a-late" hint="You can also stop or resume submissions later from the activity list">
+                <Select id="a-late" value={form.latePolicy} onChange={set('latePolicy')}>
+                  <option value="allow">Accept late submissions (marked late)</option>
+                  <option value="block">Do not accept submissions</option>
+                </Select>
+              </Field>
               <Field label="Dataset (optional)" htmlFor="a-ds">
                 <Select id="a-ds" value={form.datasetId} onChange={set('datasetId')}><option value="">No dataset</option>{(datasets.data?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select>
               </Field>
@@ -122,7 +141,7 @@ export default function Activities() {
         </Card>
         <Card title="Assigned activities" className="lg:col-span-3" action={<span className="text-xs text-gray-500">{activities.data?.meta?.total ?? 0} total</span>}>
           {activities.loading ? <div className="space-y-3">{[1, 2].map((i) => <Skeleton key={i} className="h-36" />)}</div> : activities.data.data.length ? (
-            <ul className="space-y-3">{activities.data.data.map((a) => <ActivityRow key={a.id} a={a} labs={labs.data?.data ?? []} datasets={datasets.data?.data ?? []} onOpen={setViewing} />)}</ul>
+            <ul className="space-y-3">{activities.data.data.map((a) => <ActivityRow key={a.id} a={a} labs={labs.data?.data ?? []} datasets={datasets.data?.data ?? []} onOpen={setViewing} canEdit={canAssign} onToggle={toggleClosed} />)}</ul>
           ) : <EmptyState icon={ClipboardList} title="No activities yet" message="Assign your first lab activity using the form." />}
           {activities.data?.data.length > 0 && <p className="mt-4 text-xs text-gray-600">Newest first · created {timeAgo(activities.data.data[0].createdAt)}</p>}
         </Card>

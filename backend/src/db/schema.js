@@ -243,6 +243,8 @@ async function migrate(knex) {
   await addColumn(knex, 'users', 'approved_by', (t) => ID(t, 'approved_by').nullable());
   await addColumn(knex, 'users', 'approved_at', (t) => TS(t, 'approved_at').nullable());
   await addColumn(knex, 'users', 'self_registered', (t) => t.integer('self_registered').notNullable().defaultTo(0));
+  await addColumn(knex, 'activities', 'late_policy', (t) => t.string('late_policy', 8).notNullable().defaultTo('allow')); // allow | block
+  await addColumn(knex, 'activities', 'closed', (t) => t.integer('closed').notNullable().defaultTo(0)); // faculty stopped taking submissions
   await addColumn(knex, 'activities', 'max_marks', (t) => t.integer('max_marks').notNullable().defaultTo(100));
   await addColumn(knex, 'submissions', 'paths', (t) => t.text('paths').nullable()); // JSON array: what the student chose to hand in
   await addColumn(knex, 'submissions', 'marks', (t) => t.float('marks').nullable());
