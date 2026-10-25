@@ -74,7 +74,12 @@ test('path traversal and symlink escapes are refused', async () => {
 
   // A lab container (running as the student) can create a symlink inside the workspace.
   const dir = path.join(t.ctx.storage.projectsDir(t.ids.darshini), fs.readdirSync(t.ctx.storage.projectsDir(t.ids.darshini)).find((n) => n.startsWith('safe-')));
-  fs.symlinkSync(t.ctx.storage.projectsDir(t.ids.anushka), path.join(dir, 'link'));
+  try {
+    fs.symlinkSync(t.ctx.storage.projectsDir(t.ids.anushka), path.join(dir, 'link'));
+  } catch (e) {
+    if (e.code === 'EPERM') return; // Windows without Developer Mode cannot create symlinks; symlink checks run on Linux/CI
+    throw e;
+  }
   fs.symlinkSync(path.join(t.ctx.storage.projectsDir(t.ids.anushka), 'secret.txt'), path.join(dir, 'stolen.txt'));
   const via = await d.get(`/projects/${id}/files/download?path=/stolen.txt`);
   assert.ok([403, 404].includes(via.status), `symlinked file: ${via.status}`);

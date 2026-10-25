@@ -7,6 +7,8 @@ BUCKET="${BUCKET:-cloudlab-storage}"
 MOUNT=/mnt/cloudlab
 REGISTRY="${REGISTRY:-asia-south1-docker.pkg.dev/PROJECT/cloudlab}"
 
+apt-get update && apt-get install -y curl gnupg lsb-release iptables ca-certificates
+
 # --- Docker -------------------------------------------------------------------------------------
 curl -fsSL https://get.docker.com | sh
 cat > /etc/docker/daemon.json <<'EOF'

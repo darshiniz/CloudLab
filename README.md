@@ -47,6 +47,8 @@ Locally the backend uses a simulated Docker (`DRIVER=mock`): labs go through the
 
 ## Deploying to Google Cloud
 
+**Step-by-step guides: [Azure](docs/DEPLOYMENT_AZURE.md) or [Google Cloud](docs/DEPLOYMENT.md)** (account and $300 credit, VMs, Cloud SQL, Docker, images, nginx, acceptance tests). Short version:
+
 1. 3 e2-medium VMs in asia-south1 (control + 2 workers), Cloud SQL (MySQL), a Cloud Storage bucket, Artifact Registry.
 2. Build and push lab images (repo root): `REGISTRY=asia-south1-docker.pkg.dev/PROJECT/cloudlab bash infra/images/build.sh push`
 3. Each worker: `infra/worker-setup.sh`. Control VM: `infra/control-setup.sh` and follow its printed steps.

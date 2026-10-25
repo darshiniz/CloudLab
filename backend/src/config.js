@@ -43,6 +43,7 @@ function loadConfig(env = process.env) {
       password: str('DB_PASSWORD', ''),
       database: str('DB_NAME', 'cloudlab'),
       socketPath: str('DB_SOCKET', ''), // Cloud SQL Auth Proxy unix socket, optional
+      ssl: bool('DB_SSL', false), // true for Azure Database for MySQL (TLS is mandatory there)
     },
 
     storage: {

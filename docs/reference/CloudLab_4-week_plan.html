@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CloudLab: 4-week plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2F4FF;--card:#fff;--ink:#101A3A;--mut:#5B6585;--line:#DDE1F3;--dar:#4F46E5;--dar2:#EEF0FF;--ana:#0D9488;--ana2:#E3F5F2;--ok:#16A34A;--sun:#F59E0B;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B1020;--card:#131A33;--ink:#EEF1FF;--mut:#9AA4C7;--line:#243056;--dar:#818CF8;--dar2:#1B2150;--ana:#2DD4BF;--ana2:#10302F}}
+:root[data-theme="dark"]{--bg:#0B1020;--card:#131A33;--ink:#EEF1FF;--mut:#9AA4C7;--line:#243056;--dar:#818CF8;--dar2:#1B2150;--ana:#2DD4BF;--ana2:#10302F}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Figtree,system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 56px}
+.hero{background:#101A3A;color:#fff;border-radius:28px;padding:28px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-80px;top:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.45),transparent 70%)}
+.ring{position:relative;width:150px;height:150px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center;font:800 34px 'Bricolage Grotesque',sans-serif}
+.ring .num small{font-size:14px;font-weight:600;opacity:.7}
+.arc{transition:stroke-dashoffset 1.3s cubic-bezier(.2,.8,.2,1)}
+h1{font:800 clamp(26px,5vw,38px)/1.1 'Bricolage Grotesque',sans-serif;margin:0 0 6px}
+.sub{margin:0 0 16px;opacity:.8;max-width:46ch}
+.bars{display:grid;gap:10px;position:relative;z-index:1}
+.bar{display:grid;grid-template-columns:130px 1fr auto;gap:10px;align-items:center;font-size:14px}
+.track{height:10px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}
+.fill{height:100%;border-radius:99px;width:0;transition:width .6s ease}
+.msg{margin:16px 0 0;font-weight:600;position:relative;z-index:1}
+.tl{margin:32px 0 0;position:relative;padding-left:54px}
+.tl:before{content:"";position:absolute;left:21px;top:8px;bottom:8px;width:3px;background:var(--line);border-radius:3px}
+.week{position:relative;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px;margin-bottom:22px}
+.week .pin{position:absolute;left:-54px;top:18px;width:44px;height:44px;border-radius:50%;background:var(--card);border:3px solid var(--line);display:grid;place-items:center;font:800 18px 'Bricolage Grotesque',sans-serif;transition:.3s}
+.week.done{border-color:var(--ok)}
+.week.done .pin{background:var(--ok);border-color:var(--ok);color:#fff}
+.week.pop{animation:pop .5s ease}
+@keyframes pop{40%{transform:scale(1.015)}}
+.wh{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+.wh h2{font:800 22px 'Bricolage Grotesque',sans-serif;margin:0}
+.wh p{margin:2px 0 0;color:var(--mut);font-size:14px}
+.chip{font-size:13px;font-weight:600;padding:4px 12px;border-radius:99px;background:var(--bg);border:1px solid var(--line);white-space:nowrap}
+.week.done .chip{background:var(--ok);border-color:var(--ok);color:#fff}
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.lane{border-radius:16px;padding:14px}
+.lane.d{background:var(--dar2)}.lane.a{background:var(--ana2)}
+.lane h3{margin:0 0 8px;font-size:15px;display:flex;gap:8px;align-items:center}
+.lane h3 span{font-weight:500;color:var(--mut);font-size:13px}
+.lane.d h3:before,.lane.a h3:before{content:"";width:10px;height:10px;border-radius:50%}
+.lane.d h3:before{background:var(--dar)}.lane.a h3:before{background:var(--ana)}
+.task{display:flex;gap:10px;align-items:flex-start;padding:7px 4px;cursor:pointer;font-size:15px}
+.task input{position:absolute;opacity:0;pointer-events:none}
+.box{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--mut);margin-top:1px;display:grid;place-items:center;transition:.2s;background:var(--card)}
+.box:after{content:"";width:6px;height:11px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg) scale(0);margin-top:-2px;transition:.2s}
+.d .task input:checked+.box{background:var(--dar);border-color:var(--dar)}
+.a .task input:checked+.box{background:var(--ana);border-color:var(--ana)}
+.s .task input:checked+.box{background:var(--sun);border-color:var(--sun)}
+.task input:checked+.box:after{transform:rotate(45deg) scale(1)}
+.task input:checked~.txt{text-decoration:line-through;color:var(--mut)}
+.task input:focus-visible+.box{outline:3px solid var(--sun);outline-offset:2px}
+.s{margin-top:14px;border:2px dashed var(--sun);border-radius:16px;padding:12px 14px}
+.s h3{margin:0 0 4px;font-size:15px}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;color:var(--mut);font-size:13px;margin-top:8px}
+button{font:600 13px Figtree,sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:99px;cursor:pointer}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,40px);background:#101A3A;color:#fff;padding:12px 20px;border-radius:99px;font-weight:600;opacity:0;transition:.4s;pointer-events:none;z-index:9;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:720px){.hero{grid-template-columns:1fr;justify-items:start}.lanes{grid-template-columns:1fr}.tl{padding-left:44px}.week .pin{left:-44px;width:36px;height:36px;font-size:15px}.tl:before{left:16px}.bar{grid-template-columns:96px 1fr auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="ring">
+      <svg width="150" height="150" viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="12"/><circle id="arc" class="arc" cx="75" cy="75" r="62" fill="none" stroke="#F59E0B" stroke-width="12" stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6"/></svg>
+      <div class="num"><div id="pct">0<small>%</small></div></div>
+    </div>
+    <div style="position:relative;z-index:1">
+      <h1>CloudLab: four weeks to demo day</h1>
+      <p class="sub">Provision. Develop. Learn. Tick each task as you finish it and watch the ring fill.</p>
+      <div class="bars">
+        <div class="bar"><span>Darshini</span><div class="track"><div class="fill" id="bd" style="background:#818CF8"></div></div><b id="pd">0%</b></div>
+        <div class="bar"><span>Anushka</span><div class="track"><div class="fill" id="ba" style="background:#2DD4BF"></div></div><b id="pa">0%</b></div>
+      </div>
+      <p class="msg" id="msg"></p>
+    </div>
+  </section>
+
+  <div class="tl" id="tl"></div>
+
+  <div class="foot">
+    <span>Progress is saved in this browser only.</span>
+    <button id="reset">Reset all</button>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+var W=[
+{n:1,t:"Lay the foundation",s:"Servers up, first screens live.",
+ d:["GCP project, Compute Engine VMs and static IP","Install Docker on both worker VMs","Create the Cloud SQL database and Cloud Storage bucket","Set up the Express project and the Postman collection from the API Contract"],
+ a:["Landing page and login (Prompt 1)","Student dashboard (Prompt 2)","Push the code to GitHub"],sh:[]},
+{n:2,t:"Make it real",s:"UI complete, provisioning working.",
+ d:["Auth: login, JWT and roles","Lab catalog and environment APIs","Provisioning engine: container from a template with CPU/RAM limits","Start and stop a lab"],
+ a:["Admin dashboard (Prompt 4)","Faculty dashboard (Prompt 3)","Check every page against the review checklist"],
+ sh:["Checkpoint: mock UI is complete, and login and create-lab work in Postman"]},
+{n:3,t:"Make it smart",s:"Auto-shutdown, monitoring, first live connection.",
+ d:["Auto-shutdown for inactive labs","Resource monitoring and admin metrics","Dataset storage: bucket mounted at /data","Queue and capacity limit across the two workers"],
+ a:["Fixes and polish","Swap mock data for real API calls, starting with auth","Connect one module at a time"],
+ sh:["Checkpoint: login works through the real frontend"]},
+{n:4,t:"Ship it",s:"Everything connected and demo-ready.",
+ d:["Connect and test everything end to end","Fix API mismatches with the debugging checklist","Isolation and security testing"],
+ a:["Finish the API integration","Test every page on the real backend","Prepare the demo"],
+ sh:["Run the full acceptance demo: student creates a Python lab, runs code, saves and stops it while the admin watches live","Prepare answers for the professor: 2 worker VMs and dataset storage"]}
+];
+var KEY='cloudlab-plan-v1',st={};
+try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+function row(id,t){return '<label class="task"><input type="checkbox" data-id="'+id+'"'+(st[id]?' checked':'')+'><span class="box"></span><span class="txt">'+t+'</span></label>'}
+function ids(w,k){return w[k].map(function(_,i){return w.n+'-'+k+'-'+i})}
+function pc(list){if(!list.length)return 0;var c=0;list.forEach(function(i){if(st[i])c++});return Math.round(c/list.length*100)}
+var tl=document.getElementById('tl');
+tl.innerHTML=W.map(function(w){
+ var h='<section class="week" id="w'+w.n+'"><div class="pin">'+w.n+'</div><div class="wh"><div><h2>'+w.t+'</h2><p>'+w.s+'</p></div><span class="chip" id="c'+w.n+'"></span></div><div class="lanes">';
+ h+='<div class="lane d"><h3>Darshini <span>backend</span></h3>'+w.d.map(function(t,i){return row(w.n+'-d-'+i,t)}).join('')+'</div>';
+ h+='<div class="lane a"><h3>Anushka <span>frontend</span></h3>'+w.a.map(function(t,i){return row(w.n+'-a-'+i,t)}).join('')+'</div></div>';
+ if(w.sh.length)h+='<div class="s"><h3>Together</h3>'+w.sh.map(function(t,i){return row(w.n+'-sh-'+i,t)}).join('')+'</div>';
+ return h+'</section>'}).join('');
+var C=389.6,arc=document.getElementById('arc'),first=true;
+function refresh(){
+ var all=[],D=[],A=[];
+ W.forEach(function(w){var l=ids(w,'d').concat(ids(w,'a'),ids(w,'sh'));all=all.concat(l);D=D.concat(ids(w,'d'));A=A.concat(ids(w,'a'));
+  var p=pc(l),done=0;l.forEach(function(i){if(st[i])done++});
+  var el=document.getElementById('w'+w.n);el.classList.toggle('done',p===100);
+  document.getElementById('c'+w.n).textContent=p===100?'Complete':done+' of '+l.length+' done'});
+ var p=pc(all),pd=pc(D),pa=pc(A);
+ document.getElementById('pct').innerHTML=p+'<small>%</small>';
+ document.getElementById('bd').style.width=pd+'%';document.getElementById('ba').style.width=pa+'%';
+ document.getElementById('pd').textContent=pd+'%';document.getElementById('pa').textContent=pa+'%';
+ arc.style.strokeDashoffset=C*(1-p/100);
+ var m=p===0?'Day one. Tick the first box and you have started.':p<30?'Good start. The foundation is the hardest part.':p<60?'Over a quarter done. The demo is getting closer.':p<100?'Home stretch. Keep the momentum.':'CloudLab is demo-ready. Well done, both of you.';
+ document.getElementById('msg').textContent=m}
+var tt;function toast(t){var e=document.getElementById('toast');e.textContent=t;e.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){e.classList.remove('on')},2600)}
+tl.addEventListener('change',function(e){
+ var id=e.target.getAttribute('data-id');if(!id)return;
+ var n=+id.split('-')[0],w=W[n-1],l=ids(w,'d').concat(ids(w,'a'),ids(w,'sh')),was=pc(l)===100;
+ if(e.target.checked)st[id]=1;else delete st[id];
+ save();refresh();
+ if(!was&&pc(l)===100){var el=document.getElementById('w'+n);el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');toast('Week '+n+' complete. '+(n<4?'On to week '+(n+1)+'.':'Demo day is here.'))}
+});
+var rb=document.getElementById('reset'),rt;
+rb.addEventListener('click',function(){
+ if(rb.dataset.arm){st={};save();document.querySelectorAll('input[data-id]').forEach(function(i){i.checked=false});refresh();rb.textContent='Reset all';delete rb.dataset.arm;return}
+ rb.dataset.arm=1;rb.textContent='Click again to confirm';clearTimeout(rt);rt=setTimeout(function(){rb.textContent='Reset all';delete rb.dataset.arm},3000)});
+refresh();
+</script>
+</body>
+</html>

@@ -17,6 +17,7 @@ function createDb(cfg) {
   const connection = {
     user: cfg.db.user, password: cfg.db.password, database: cfg.db.database, timezone: 'Z', charset: 'utf8mb4',
   };
+  if (cfg.db.ssl) connection.ssl = { minVersion: 'TLSv1.2', rejectUnauthorized: true };
   if (cfg.db.socketPath) connection.socketPath = cfg.db.socketPath;
   else { connection.host = cfg.db.host; connection.port = cfg.db.port; }
   return knexLib({ client: 'mysql2', connection, pool: { min: 1, max: 10 } });

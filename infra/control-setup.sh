@@ -6,7 +6,11 @@ MOUNT=/mnt/cloudlab
 
 # Node 22, nginx, SSH client, gcsfuse
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt-get install -y nodejs nginx openssh-client curl gnupg lsb-release
+apt-get install -y nodejs nginx openssh-client curl gnupg lsb-release docker.io
+# Only the docker CLI is used on this VM (it talks to the workers over SSH); the local daemon is not needed.
+systemctl disable --now docker docker.socket 2>/dev/null || true certbot python3-certbot-nginx
+# Docker CLI only: the API drives each worker's Docker over SSH (DOCKER_HOST=ssh://...), which needs the local docker client
+curl -fsSL https://get.docker.com | sh && systemctl disable --now docker docker.socket
 echo "deb [signed-by=/usr/share/keyrings/cloud.google.asc] https://packages.cloud.google.com/apt gcsfuse-$(lsb_release -c -s) main" > /etc/apt/sources.list.d/gcsfuse.list
 curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg -o /usr/share/keyrings/cloud.google.asc
 apt-get update && apt-get install -y gcsfuse

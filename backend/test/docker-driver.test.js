@@ -1,4 +1,6 @@
-const { test, before, after } = require('node:test');
+const { test: baseTest, before, after } = require('node:test');
+// The fake docker is a script with a shebang; Windows cannot execute it directly (EFTYPE). Runs on Linux/macOS/CI.
+const test = (name, fn) => baseTest(name, { skip: process.platform === 'win32' ? 'needs a POSIX shell (fake docker script)' : false }, fn);
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
