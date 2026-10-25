@@ -13,6 +13,7 @@ WorkingDirectory=/opt/cloudlab/backend
 EnvironmentFile=/etc/cloudlab/api.env
 # Later files override earlier ones: this one sets PORT, INSTANCE_ID and turns the jobs off.
 EnvironmentFile=/etc/cloudlab/api-2.env
+ExecStart=/usr/bin/node src/server.js
 Restart=always
 RestartSec=3
 Environment=HOME=/home/cloudlab
