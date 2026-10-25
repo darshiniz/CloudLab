@@ -113,6 +113,16 @@ class EnvironmentService {
     return row;
   }
 
+  /**
+   * Take the worker rows' lock BEFORE any other read in the transaction. On MySQL (REPEATABLE READ) a transaction reads a
+   * snapshot taken at its first plain SELECT; if we waited for the lock after that, we would still see the old snapshot and
+   * several simultaneous requests would be given the same host port or one slot too many. A locking read has no snapshot,
+   * so every read after it sees what the previous request committed. (SQLite ignores the lock: it already serialises.)
+   */
+  async _lockWorkers(trx) {
+    await trx('nodes').where({ kind: 'worker' }).forUpdate().select('id');
+  }
+
   // ---- slots & queue (BRD BR-09: reserve in one transaction before any container exists) -----
   async _allocPort(trx, workerId, env) {
     if (env.container_id && env.worker_id === workerId && env.host_port) return env.host_port; // stopped container keeps its port
@@ -171,6 +181,7 @@ class EnvironmentService {
         this.queueAgain = false;
         for (;;) {
           const started = await this.ctx.db.transaction(async (trx) => {
+            await this._lockWorkers(trx);
             const head = await trx('environments').where({ status: S.QUEUED }).orderBy('queued_seq').first();
             if (!head) return null;
             const r = await this._reserve(trx, head, { ignoreQueue: true });
@@ -205,6 +216,7 @@ class EnvironmentService {
       duration_minutes: durationMinutes, created_at: now, updated_at: now,
     };
     const out = await db.transaction(async (trx) => {
+      await this._lockWorkers(trx);
       await this._assertActiveLimit(trx, user.id, null);
       await trx('environments').insert(base);
       const r = await this._reserve(trx, base);
@@ -248,6 +260,7 @@ class EnvironmentService {
   async _activate(env) {
     const { db } = this.ctx;
     const out = await db.transaction(async (trx) => {
+      await this._lockWorkers(trx);
       const cur = await trx('environments').where({ id: env.id }).first();
       if (!cur || (cur.status !== S.STOPPED && cur.status !== S.FAILED)) throw E.invalidState('Lab changed state, please try again');
       await this._assertActiveLimit(trx, cur.user_id, cur.id);

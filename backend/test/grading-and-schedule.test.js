@@ -99,6 +99,8 @@ test('scheduled stop (16:55 IST) stops labs started before it and spares later o
     const late = (await createLab(c, { name: 'late lab' })).body.data.id;
     await waitStatus(s.ctx, early, 'running'); await waitStatus(s.ctx, late, 'running');
     const day = a.scheduledStopMs(Date.now());
+    // the test may run at any hour: make sure the 4-hour session limit cannot expire these labs before 16:55 does
+    await s.ctx.db('environments').whereIn('id', [early, late]).update({ session_expires_at: new Date(day + 86_400_000).toISOString() });
     await s.ctx.db('environments').where({ id: early }).update({ started_at: new Date(day - 3600_000).toISOString(), last_activity_at: new Date(day + 60_000).toISOString() });
     await s.ctx.db('environments').where({ id: late }).update({ started_at: new Date(day + 30_000).toISOString(), last_activity_at: new Date(day + 60_000).toISOString() });
     await a.tick(day + 60_000);
