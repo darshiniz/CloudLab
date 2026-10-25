@@ -274,7 +274,7 @@ function assignmentView(a, user) {
     dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
     status: sub ? 'submitted' : mine.length ? 'inProgress' : 'assigned',
     maxMarks: a.maxMarks ?? 100,
-    submission: sub ? { submittedAt: sub.submittedAt, note: sub.note, late: new Date(sub.submittedAt) > new Date(a.dueDate), marks: sub.marks ?? null, feedback: sub.feedback ?? null, gradedAt: sub.gradedAt ?? null } : null,
+    submission: sub ? { paths: sub.paths ?? [], submittedAt: sub.submittedAt, note: sub.note, late: new Date(sub.submittedAt) > new Date(a.dueDate), marks: sub.marks ?? null, feedback: sub.feedback ?? null, gradedAt: sub.gradedAt ?? null } : null,
     overdue: !sub && new Date(a.dueDate) < new Date(),
     liveEnvironmentId: live?.id ?? null, environmentId: (live || mine[0])?.id ?? null,
   };
@@ -586,14 +586,21 @@ const routes = [
     .filter((a) => a.assignTo.type === 'class' || a.assignTo.studentIds.includes(user.id))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
     .map((a) => assignmentView(a, user))) ],
+  ['GET', '/assignments/workspace', [S], () => ok([
+    { name: 'loops-practice', type: 'folder', sizeBytes: 0, modifiedAt: nowIso() },
+    { name: 'portfolio-site', type: 'folder', sizeBytes: 0, modifiedAt: nowIso() },
+    { name: 'scratch', type: 'folder', sizeBytes: 0, modifiedAt: nowIso() },
+    { name: 'notes.txt', type: 'file', sizeBytes: 420, modifiedAt: nowIso() },
+  ])],
   ['POST', '/assignments/:id/submit', [S], ({ user, params, body }) => {
     const a = db.activities.find((x) => x.id === params.id && (x.assignTo.type === 'class' || x.assignTo.studentIds.includes(user.id))) ?? notFound('Activity');
     if ((body?.note ?? '').length > 1000) fail(422, E.VALIDATION_ERROR, 'Validation failed', { note: 'is too long' });
     db.submissions ??= [];
     const existing = db.submissions.find((x) => x.activityId === a.id && x.userId === user.id);
-    if (existing) Object.assign(existing, { note: body?.note?.trim() || null, submittedAt: nowIso() });
+    const paths = Array.isArray(body?.paths) ? body.paths : [];
+    if (existing) Object.assign(existing, { note: body?.note?.trim() || null, submittedAt: nowIso(), paths });
     else {
-      db.submissions.push({ activityId: a.id, userId: user.id, note: body?.note?.trim() || null, submittedAt: nowIso() });
+      db.submissions.push({ activityId: a.id, userId: user.id, note: body?.note?.trim() || null, submittedAt: nowIso(), paths });
       a.progress.completed += 1;
       if (a.progress.inProgress > 0) a.progress.inProgress -= 1;
     }
@@ -608,7 +615,7 @@ const routes = [
       return {
         studentId: u.id, name: u.name, rollNo: u.rollNo ?? null, email: u.email,
         status: sub ? 'submitted' : started ? 'inProgress' : 'assigned',
-        submittedAt: sub?.submittedAt ?? null, late: sub ? new Date(sub.submittedAt) > new Date(a.dueDate) : false, note: sub?.note ?? null,
+        submittedAt: sub?.submittedAt ?? null, late: sub ? new Date(sub.submittedAt) > new Date(a.dueDate) : false, note: sub?.note ?? null, paths: sub?.paths ?? [],
         marks: sub?.marks ?? null, feedback: sub?.feedback ?? null, gradedAt: sub?.gradedAt ?? null, maxMarks: a.maxMarks ?? 100,
       };
     }));

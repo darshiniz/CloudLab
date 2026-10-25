@@ -83,32 +83,61 @@ test('faculty see who submitted, and can read a submitted student\'s files (read
   let rows = (await f.get(`/faculty/activities/${act.id}/submissions`)).body.data;
   assert.equal(rows.length, 2);
   assert.deepEqual(rows.map((x) => x.status), ['assigned', 'assigned']);
-  assert.deepEqual(Object.keys(rows[0]).sort(), ['email', 'feedback', 'gradedAt', 'late', 'marks', 'maxMarks', 'name', 'note', 'rollNo', 'status', 'studentId', 'submittedAt']);
+  assert.deepEqual(Object.keys(rows[0]).sort(), ['email', 'feedback', 'gradedAt', 'late', 'marks', 'maxMarks', 'name', 'note', 'paths', 'rollNo', 'status', 'studentId', 'submittedAt']);
   assert.deepEqual((await f.get(`/faculty/activities/${act.id}`)).body.data.progress, { assigned: 2, inProgress: 0, completed: 0 });
   assert.equal((await files(t.ids.darshini)).status, 404, 'not submitted yet');
 
   await t.ctx.storage.ensureStudent(t.ids.darshini);
   const dir = t.ctx.storage.projectsDir(t.ids.darshini);
-  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'main.py'), 'print("hello")\n');
-  fs.writeFileSync(path.join(dir, 'src', 'util.py'), 'x = 1\n');
-  await d.post(`/assignments/${act.id}/submit`, { note: 'please check' });
+  const put = (rel, text) => { fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true }); fs.writeFileSync(path.join(dir, rel), text); };
+  put('loops/main.py', 'print("hello")\n');
+  put('loops/src/util.py', 'x = 1\n');
+  put('loops/node_modules/big/index.js', 'skipped');
+  put('private-stuff/diary.txt', 'not for faculty');
+  put('notes.txt', 'also private');
+  fs.symlinkSync('/etc', path.join(dir, 'loops', 'link-to-etc'));
+
+  // the picker lists the top of the workspace
+  const pick = (await d.get('/assignments/workspace')).body.data;
+  assert.deepEqual(pick.map((x) => x.name).sort(), ['loops', 'notes.txt', 'private-stuff']);
+
+  // bad choices are refused and nothing is recorded
+  for (const bad of [['../x'], ['loops/src'], ['nope'], ['..'], ['/etc']]) {
+    assert.equal((await d.post(`/assignments/${act.id}/submit`, { note: 'x', paths: bad })).status, 422, JSON.stringify(bad));
+  }
+  assert.equal((await files(t.ids.darshini)).status, 404, 'still not submitted');
+
+  await d.post(`/assignments/${act.id}/submit`, { note: 'please check', paths: ['loops'] });
 
   rows = (await f.get(`/faculty/activities/${act.id}/submissions`)).body.data;
   const dr = rows.find((x) => x.studentId === t.ids.darshini);
   assert.equal(dr.status, 'submitted');
   assert.equal(dr.note, 'please check');
+  assert.deepEqual(dr.paths, ['loops']);
   assert.equal(rows.find((x) => x.studentId === t.ids.anushka).status, 'assigned');
   assert.deepEqual((await f.get(`/faculty/activities/${act.id}`)).body.data.progress, { assigned: 2, inProgress: 0, completed: 1 });
 
+  // faculty see ONLY what was handed in: no private folder, no loose file, no node_modules, no symlink
   const top = (await files(t.ids.darshini)).body.data;
-  assert.ok(top.some((x) => x.name === 'main.py' && x.type === 'file'));
-  assert.ok(top.some((x) => x.name === 'src' && x.type === 'folder'));
-  assert.deepEqual((await files(t.ids.darshini, '?path=/src')).body.data.map((x) => x.name), ['util.py']);
-  const dl = await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/main.py`);
+  assert.deepEqual(top.map((x) => x.name), ['loops']);
+  assert.deepEqual((await files(t.ids.darshini, '?path=/loops')).body.data.map((x) => x.name).sort(), ['main.py', 'src']);
+  assert.deepEqual((await files(t.ids.darshini, '?path=/loops/src')).body.data.map((x) => x.name), ['util.py']);
+  assert.equal((await files(t.ids.darshini, '?path=/private-stuff')).status, 404);
+  const dl = await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/loops/main.py`);
   assert.equal(dl.status, 200);
   assert.match(dl.text ?? String(dl.body), /hello/);
-  assert.equal((await files(t.ids.darshini, '?path=/../..')).status >= 400, true, 'cannot escape the student folder');
+  assert.equal((await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/notes.txt`)).status >= 400, true);
+  assert.equal((await files(t.ids.darshini, '?path=/../..')).status >= 400, true, 'cannot escape the submission folder');
+
+  // the copy is frozen: editing the live workspace afterwards changes nothing for faculty
+  put('loops/main.py', 'print("CHANGED AFTER SUBMIT")\n');
+  const dl2 = await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/loops/main.py`);
+  assert.match(dl2.text ?? String(dl2.body), /hello/);
+  // submitting again replaces the copy (and a different choice replaces the old one)
+  await d.post(`/assignments/${act.id}/submit`, { note: 'v2', paths: ['loops', 'notes.txt'] });
+  const dl3 = await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/loops/main.py`);
+  assert.match(dl3.text ?? String(dl3.body), /CHANGED AFTER SUBMIT/);
+  assert.deepEqual((await files(t.ids.darshini)).body.data.map((x) => x.name).sort(), ['loops', 'notes.txt']);
   assert.equal((await files(t.ids.anushka)).status, 404, 'Anushka has not submitted');
 
   // another faculty member's activities are not visible; admin may read; students may not
@@ -120,4 +149,26 @@ test('only students can use the assignments endpoints', async () => {
   assert.equal((await (await t.as(t.emails.faculty)).get('/assignments')).status, 403);
   assert.equal((await (await t.as(t.emails.admin)).get('/assignments')).status, 403);
   assert.equal((await t.raw.get(`${t.API}/assignments`)).status, 401);
+});
+
+test('handing in is limited in size and a submission without files is allowed', async () => {
+  const small = await boot({ MAX_SUBMISSION_BYTES: '1000' });
+  try {
+    const f = await small.as(small.emails.faculty);
+    const d = await small.as(small.emails.darshini);
+    const act = (await f.post('/faculty/activities', { ...base, title: 'Size', assignTo: { type: 'class', studentIds: [] } })).body.data;
+    await small.ctx.storage.ensureStudent(small.ids.darshini);
+    const dir = small.ctx.storage.projectsDir(small.ids.darshini);
+    fs.mkdirSync(path.join(dir, 'big'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'big', 'data.bin'), Buffer.alloc(5000));
+    const r = await d.post(`/assignments/${act.id}/submit`, { paths: ['big'] });
+    assert.equal(r.status, 422);
+    assert.ok(r.body.error.details.paths);
+    assert.equal((await d.get('/assignments')).body.data.find((x) => x.id === act.id).status, 'assigned', 'nothing was recorded');
+    const none = await d.post(`/assignments/${act.id}/submit`, { note: 'theory only' });
+    assert.equal(none.status, 201);
+    const empty = await f.get(`/faculty/activities/${act.id}/submissions/${small.ids.darshini}/files`);
+    assert.equal(empty.status, 200);
+    assert.deepEqual(empty.body.data, [], 'submitted without files: faculty see an empty folder, never the live workspace');
+  } finally { await small.close(); }
 });

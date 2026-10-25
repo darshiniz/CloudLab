@@ -15,6 +15,7 @@ const IGNORE_FOR_ACTIVITY = new Set(['node_modules', '.git', 'venv', '.venv', '_
  *   <root>/datasets/                          shared datasets
  *   <root>/students/<userId>/datasets/        a student's own datasets   (mounted at /data/mine)
  *   <root>/students/<userId>/projects/<dir>/  project files              (mounted at /workspace)
+ *   <root>/submissions/<activityId>/<userId>/ a copy of what a student handed in (faculty read this, never the live workspace)
  *   <root>/.tmp/                              upload staging
  */
 class Storage {
@@ -25,6 +26,7 @@ class Storage {
     this.usageCache = new Map(); // userId -> {at, bytes}
     fs.mkdirSync(path.join(this.root, 'datasets'), { recursive: true });
     fs.mkdirSync(path.join(this.root, 'students'), { recursive: true });
+    fs.mkdirSync(path.join(this.root, 'submissions'), { recursive: true });
     fs.mkdirSync(this.tmpDir, { recursive: true });
   }
 
@@ -32,6 +34,7 @@ class Storage {
   get datasetsDir() { return path.join(this.root, 'datasets'); }
   studentDir(userId) { return path.join(this.root, 'students', userId); }
   projectsDir(userId) { return path.join(this.studentDir(userId), 'projects'); }
+  submissionDir(activityId, userId) { return path.join(this.root, 'submissions', activityId, userId); }
   myDatasetsDir(userId) { return path.join(this.studentDir(userId), 'datasets'); }
 
   /** Paths as the worker sees them, used as docker bind-mount sources. */
@@ -205,6 +208,53 @@ class Storage {
     const st = await fsp.stat(dest);
     const rel = '/' + path.relative(base, dest).split(path.sep).join('/');
     return { name, path: rel, type: 'file', sizeBytes: st.size, modifiedAt: st.mtime.toISOString() };
+  }
+
+  /**
+   * Copies the chosen top-level folders/files of a student's workspace into the submission area for one activity,
+   * replacing any earlier copy. Faculty only ever read this copy, so unrelated work stays private and later edits
+   * do not change what was handed in. Symlinks and tool folders (node_modules, .git, venv ...) are skipped.
+   * Copies with streams, not fs.cp: copyFile also chmods, which blobfuse2 refuses.
+   */
+  async snapshotSubmission(userId, activityId, names) {
+    const base = this.projectsDir(userId);
+    const { maxSubmissionBytes: maxBytes, maxSubmissionFiles: maxFiles } = this.cfg.storage;
+    const plan = []; // { from, rel }
+    let bytes = 0;
+    const walk = async (abs, rel) => {
+      const st = await fsp.lstat(abs);
+      if (st.isSymbolicLink()) return;
+      if (st.isDirectory()) {
+        if (IGNORE_FOR_ACTIVITY.has(path.basename(abs))) return;
+        plan.push({ dir: rel });
+        for (const e of await fsp.readdir(abs)) await walk(path.join(abs, e), path.posix.join(rel, e));
+      } else if (st.isFile()) {
+        bytes += st.size;
+        plan.push({ from: abs, rel });
+        if (bytes > maxBytes) throw E.validation({ paths: `are too large to hand in (limit ${Math.round(maxBytes / 1024 ** 2)} MB). Choose fewer folders, or remove large files` });
+        if (plan.length > maxFiles) throw E.validation({ paths: `contain too many files (limit ${maxFiles}). Choose fewer folders` });
+      }
+    };
+    for (const name of names) {
+      if (!name || name === '.' || name === '..' || /[\\/\0]/.test(name)) throw E.validation({ paths: `"${name}" is not a folder or file at the top of your workspace` });
+      const abs = path.join(base, name);
+      let st;
+      try { st = await fsp.lstat(abs); } catch { throw E.validation({ paths: `"${name}" was not found in your workspace` }); }
+      if (st.isSymbolicLink()) throw E.validation({ paths: `"${name}" cannot be handed in` });
+      await walk(abs, name);
+    }
+    const dest = this.submissionDir(activityId, userId);
+    await fsp.rm(dest, { recursive: true, force: true });
+    await fsp.mkdir(dest, { recursive: true });
+    try {
+      for (const item of plan) {
+        if (item.dir) { await fsp.mkdir(path.join(dest, item.dir), { recursive: true }); continue; }
+        const to = path.join(dest, item.rel);
+        await fsp.mkdir(path.dirname(to), { recursive: true });
+        await pipeline(fs.createReadStream(item.from), fs.createWriteStream(to));
+      }
+    } catch (e) { await fsp.rm(dest, { recursive: true, force: true }).catch(() => {}); throw e; }
+    return { files: plan.filter((p) => p.from).length, bytes };
   }
 
   async resolveFile(base, rel) {

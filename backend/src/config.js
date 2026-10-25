@@ -55,6 +55,8 @@ function loadConfig(env = process.env) {
       bucketName: str('GCS_BUCKET_NAME', 'cloudlab-storage'),
       maxUploadBytes: int('MAX_UPLOAD_BYTES', 100 * 1024 ** 2),
       maxDatasetBytes: int('MAX_DATASET_BYTES', 200 * 1024 ** 2),
+      maxSubmissionBytes: int('MAX_SUBMISSION_BYTES', 100 * 1024 ** 2), // size of what one student hands in for one activity
+      maxSubmissionFiles: int('MAX_SUBMISSION_FILES', 2000),
     },
 
     driver: {

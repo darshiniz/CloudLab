@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Award, CalendarClock, CheckCircle2, ClipboardList, Database, ExternalLink, Play, Send, Terminal, User } from 'lucide-react';
+import { Award, CalendarClock, File as FileIcon, Folder, CheckCircle2, ClipboardList, Database, ExternalLink, Play, Send, Terminal, User } from 'lucide-react';
 import { api } from '../../services/api';
 import useQuery from '../../hooks/useQuery';
 import { useToast } from '../../context/ToastContext';
@@ -34,6 +34,7 @@ function Assignment({ a, onStart, onOpen, onMyLabs, onSubmit }) {
               <CheckCircle2 className="h-3.5 w-3.5 text-status-running" />
               Submitted {formatDateTime(a.submission.submittedAt)}{a.submission.late ? ' · late' : ''}
               {a.submission.note && <span className="text-gray-500">· “{a.submission.note}”</span>}
+              {a.submission.paths?.length > 0 && <span className="text-gray-500">· handed in: {a.submission.paths.join(', ')}</span>}
             </p>
           )}
           {submitted && (a.submission.marks != null ? (
@@ -65,6 +66,8 @@ export default function Assignments() {
   const [starting, setStarting] = useState(null);
   const [submitting, setSubmitting] = useState(null);
   const [note, setNote] = useState('');
+  const [wsItems, setWsItems] = useState(null);
+  const [chosen, setChosen] = useState([]);
   const [saving, setSaving] = useState(false);
 
   const items = list.data?.data ?? [];
@@ -73,11 +76,16 @@ export default function Assignments() {
   const labList = labs.data?.data;
   const initialLab = starting && labList ? labList.find((l) => l.id === starting.lab.id) : undefined;
 
-  const openSubmit = (a) => { setSubmitting(a); setNote(a.submission?.note ?? ''); };
+  const openSubmit = async (a) => {
+    setSubmitting(a); setNote(a.submission?.note ?? ''); setWsItems(null);
+    setChosen(a.submission?.paths ?? []);
+    try { setWsItems(await api.listWorkspaceItems()); } catch (err) { toast.apiError(err); setWsItems([]); }
+  };
+  const toggle = (name) => setChosen((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
   const confirmSubmit = async () => {
     setSaving(true);
     try {
-      await api.submitAssignment(submitting.id, note.trim());
+      await api.submitAssignment(submitting.id, note.trim(), chosen);
       toast.success(submitting.status === 'submitted' ? 'Submission updated' : 'Submitted. Your faculty can now see your work.');
       setSubmitting(null);
       list.refresh();
@@ -105,7 +113,19 @@ export default function Assignments() {
 
       <Modal open={!!submitting} onClose={() => setSubmitting(null)} title={submitting?.status === 'submitted' ? 'Update submission' : 'Submit activity'} description={submitting?.title}
         footer={<><Button variant="secondary" onClick={() => setSubmitting(null)}>Cancel</Button><Button icon={Send} loading={saving} onClick={confirmSubmit}>{submitting?.status === 'submitted' ? 'Update' : 'Submit'}</Button></>}>
-        <p className="mb-4 text-sm text-gray-400">Your faculty will be able to open the files in your workspace as they are now. You can add a note for them.</p>
+        <p className="mb-3 text-sm text-gray-400">Choose what to hand in. Your faculty can open <b>only</b> the folders and files you tick, exactly as they are now. Anything else in your workspace stays private.</p>
+        <div className="mb-4 max-h-48 overflow-y-auto rounded-xl border border-line">
+          {wsItems === null ? <p className="p-3 text-sm text-gray-500">Loading your workspace…</p>
+            : wsItems.length === 0 ? <p className="p-3 text-sm text-gray-500">Your workspace is empty. You can still submit with a note.</p>
+            : wsItems.map((i) => (
+              <label key={i.name} className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 text-sm text-gray-300 last:border-0 hover:bg-white/[0.03]">
+                <input type="checkbox" checked={chosen.includes(i.name)} onChange={() => toggle(i.name)} className="h-4 w-4 accent-teal-500" />
+                {i.type === 'folder' ? <Folder className="h-4 w-4 text-accent" /> : <FileIcon className="h-4 w-4 text-gray-500" />}
+                <span className="flex-1">{i.name}</span>
+              </label>
+            ))}
+        </div>
+        {wsItems && wsItems.length > 0 && chosen.length === 0 && <p className="mb-3 text-xs text-yellow-300">Nothing is ticked, so your faculty will see only your note.</p>}
         <Field label="Note (optional)" htmlFor="sub-note"><Textarea id="sub-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} placeholder="Anything your faculty should know?" /></Field>
       </Modal>
 

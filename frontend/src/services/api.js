@@ -159,7 +159,8 @@ export const api = {
   getStudent: (id) => one(request('faculty', 'GET', `/faculty/students/${id}`)),
   // Activities assigned to the signed-in student (addition, see backend docs/CONTRACT_NOTES.md)
   listAssignments: () => request('assignments', 'GET', '/assignments'),
-  submitAssignment: (id, note) => one(request('assignments', 'POST', `/assignments/${id}/submit`, { body: note ? { note } : {} })),
+  listWorkspaceItems: () => one(request('assignments', 'GET', '/assignments/workspace')),
+  submitAssignment: (id, note, paths = []) => one(request('assignments', 'POST', `/assignments/${id}/submit`, { body: { ...(note ? { note } : {}), paths } })),
   listActivities: () => request('faculty', 'GET', '/faculty/activities'),
   // Who has submitted an activity, and a read-only view of a submitted student's files (faculty and admin)
   gradeSubmission: (activityId, studentId, { marks, feedback }) =>

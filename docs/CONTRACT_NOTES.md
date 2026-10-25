@@ -68,12 +68,14 @@ Student (`student` role only; 401 without a token, 403 otherwise):
 * `GET /api/v1/assignments`: activities assigned to the signed-in student (whole class, or naming the student), by due date.
   `{ id, title, description, dueDate, createdAt, assignedBy, lab: {id,name,type}, dataset: {id,name,mountPath} | null, status, submission: {submittedAt,note,late} | null, overdue, liveEnvironmentId, environmentId }`
   `status`: `assigned` (no lab started for it), `inProgress` (a lab of the activity's template was created after the activity was assigned, even if it is stopped now), `submitted` (the student pressed Submit).
-* `POST /api/v1/assignments/:id/submit` `{ note? }` (note max 1000 chars): 201 on first submit, 200 when updating. 404 if the activity is not assigned to the student.
+* `GET /api/v1/assignments/workspace`: the folders and files at the top of the student's workspace (`[{ name, type, sizeBytes, modifiedAt }]`), for the "what to hand in" picker.
+* `POST /api/v1/assignments/:id/submit` `{ note?, paths? }` (note max 1000 chars; `paths` = names of top-level workspace folders/files to hand in, max 50): 201 on first submit, 200 when updating. 404 if the activity is not assigned to the student; 422 if a name is not at the top of the workspace, or the choice is over `MAX_SUBMISSION_BYTES` (100 MB) / `MAX_SUBMISSION_FILES` (2000).
+  **Submit copies the chosen items** (without `node_modules`, `.git`, `venv`, symlinks...) to `<storage>/submissions/<activityId>/<studentId>/`. Faculty read only that copy, never the live workspace, so private work stays private and later edits do not change what was handed in. Submitting again replaces the copy.
 
 Faculty (own activities) and admin (read-only):
 
 * `GET /faculty/activities/:id/submissions`: every assigned student with `status`, `submittedAt`, `late`, `note`.
-* `GET /faculty/activities/:id/submissions/:studentId/files?path=` and `.../files/download?path=`: read-only view of that student's workspace, **only after the student has submitted** (404 before).
+* `GET /faculty/activities/:id/submissions/:studentId/files?path=` and `.../files/download?path=`: read-only view of **the copy the student handed in** (404 before they submit). Rows also carry `paths` (what was chosen).
 
 **Activity progress** (`GET /faculty/activities`): `completed` = students who submitted, `inProgress` = students who started a lab but have not submitted, `assigned` = everyone the activity is for.
 

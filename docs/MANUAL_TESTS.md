@@ -9,9 +9,9 @@ Use two browser windows (one normal, one private) so you can be faculty and stud
 3. In the lab IDE create `loops.py` containing `print("hello")` and save it (Ctrl+S).
 4. Back in CloudLab press **Stop** on the lab (My Labs). Return to **Assignments**: status must say **In progress** (not Submitted).
 5. Start the lab again (My Labs > Start, or **Resume in My Labs**). `loops.py` must still be there.
-6. **Assignments > Submit**, type the note "Finished, please check", press **Submit**. The activity moves to **Submitted** and shows "Not graded yet".
+6. **Assignments > Submit**. In the window tick **only** the folder that holds `loops.py` (leave other folders unticked), type the note "Finished, please check", press **Submit**. The activity moves to **Submitted**, shows "handed in: <folder>" and "Not graded yet".
 7. **Faculty**: **Assign Activity** > on "Loops practice" press **View submissions**. Darshini shows **Submitted**, with the note "Finished, please check".
-8. Press **View files**: `loops.py` is listed; press **Download** and open the file.
+8. Press **View files**: only the folder you ticked is listed (none of the student's other projects); press **Download** and open `loops.py`. As the student, edit `loops.py` again: the faculty copy does not change until the student submits again.
 9. Press **Grade**, enter marks 17, feedback "Good use of loops", **Save marks**. The row now says "17/20 marks".
 10. **Student**: **Assignments**: under **Submitted** the card shows "Marks: 17 / 20" and the feedback.
 

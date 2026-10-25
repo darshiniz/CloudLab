@@ -76,7 +76,7 @@ module.exports = (ctx) => {
         status: sub ? 'submitted' : started.has(u.id) ? 'inProgress' : 'assigned',
         submittedAt: sub ? pub(sub.submitted_at) : null,
         late: sub ? new Date(sub.submitted_at) > new Date(a.due_date) : false,
-        note: sub?.note ?? null,
+        note: sub?.note ?? null, paths: sub ? ser.parseJson(sub.paths, []) : [],
         marks: sub?.marks ?? null, feedback: sub?.feedback ?? null, gradedAt: pub(sub?.graded_at) ?? null,
         maxMarks: a.max_marks ?? 100,
       };
@@ -87,7 +87,10 @@ module.exports = (ctx) => {
     if (!a) throw E.notFound('Activity not found');
     const sub = await db('submissions').where({ activity_id: a.id, user_id: req.params.studentId }).first();
     if (!sub) throw E.notFound('This student has not submitted this activity');
-    return storage.projectsDir(req.params.studentId);
+    // Faculty read the copy made at Submit time, never the student's live workspace.
+    const dir = storage.submissionDir(a.id, req.params.studentId);
+    if (!require('fs').existsSync(dir)) throw E.notFound('This submission has no files attached');
+    return dir;
   }
 
   r.get('/faculty/activities/:id/submissions', requireRole(ROLE.FACULTY, ROLE.ADMIN), async (req, res) => {

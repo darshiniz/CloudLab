@@ -105,7 +105,7 @@ export default function SubmissionsModal({ activity, onClose }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white">{r.name} <span className="ml-1 font-mono text-xs text-gray-600">{r.rollNo}</span></p>
                 {r.status === 'submitted'
-                  ? <p className="text-xs text-gray-500">Submitted {formatDateTime(r.submittedAt)}{r.late ? ' · late' : ''}{r.note ? ` · “${r.note}”` : ''}{r.marks != null ? ` · ${r.marks}/${r.maxMarks} marks` : ' · not graded'}</p>
+                  ? <p className="text-xs text-gray-500">Submitted {formatDateTime(r.submittedAt)}{r.late ? ' · late' : ''}{r.note ? ` · “${r.note}”` : ''}{r.paths?.length ? ` · handed in: ${r.paths.join(', ')}` : ' · no files handed in'}{r.marks != null ? ` · ${r.marks}/${r.maxMarks} marks` : ' · not graded'}</p>
                   : <p className="text-xs text-gray-600">{r.status === 'inProgress' ? 'Started a lab, not submitted yet' : 'Has not started'}</p>}
               </div>
               <StatusBadge status={r.status} label={r.late && r.status === 'submitted' ? 'Submitted late' : LABEL[r.status]} />
