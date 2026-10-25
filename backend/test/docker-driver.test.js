@@ -17,6 +17,8 @@ before(() => {
   logFile = path.join(dir, 'calls.log');
   fs.writeFileSync(logFile, '');
   process.env.FAKE_DOCKER_LOG = logFile;
+  // Git on Windows does not keep the executable bit, so set it here (the script is run as the `docker` program).
+  fs.chmodSync(path.resolve(__dirname, 'fixtures/fake-docker.js'), 0o755);
   const cfg = loadConfig({ NODE_ENV: 'test', DRIVER: 'docker', DOCKER_BIN: path.resolve(__dirname, 'fixtures/fake-docker.js') });
   driver = new DockerCliDriver(cfg, { warn() {}, info() {}, error() {} });
 });
