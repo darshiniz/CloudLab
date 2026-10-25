@@ -23,7 +23,7 @@ test('login: success returns token, expiresIn and the User model', async () => {
   const { token, expiresIn, user } = r.body.data;
   assert.ok(token);
   assert.equal(expiresIn, 28800);
-  assert.deepEqual(Object.keys(user).sort(), ['createdAt', 'email', 'id', 'lastActiveAt', 'name', 'role', 'rollNo', 'status']);
+  assert.deepEqual(Object.keys(user).sort(), ['approvedAt', 'approvedBy', 'createdAt', 'email', 'id', 'lastActiveAt', 'name', 'role', 'rollNo', 'selfRegistered', 'status']);
   assert.equal(user.role, ROLE.STUDENT);
   assert.equal(user.rollNo, '25P0320018');
   assert.match(user.id, /^usr_/);
@@ -188,7 +188,7 @@ test('environment model matches the contract exactly', async () => {
   const r = await s.post('/environments', { labId: 'lab_python', name: 'shape check', size: SIZE.STANDARD, durationMinutes: 30 });
   assert.equal(r.status, 202);
   const e = r.body.data;
-  assert.deepEqual(Object.keys(e).sort(), ['autoStopAt', 'containerId', 'createdAt', 'failureReason', 'id', 'labId', 'labType', 'lastActivityAt', 'name', 'provisioning', 'queuePosition', 'resources', 'size', 'startedAt', 'status', 'stoppedAt', 'usage', 'userId', 'userName', 'workerId']);
+  assert.deepEqual(Object.keys(e).sort(), ['autoStopAt', 'containerId', 'createdAt', 'failureReason', 'id', 'labId', 'labType', 'lastActivityAt', 'name', 'provisioning', 'queuePosition', 'resources', 'size', 'startedAt', 'status', 'stopReason', 'stoppedAt', 'usage', 'userId', 'userName', 'workerId']);
   assert.match(e.id, /^env_/);
   assert.deepEqual(e.resources, { cpu: 2, memoryGb: 2, storageGb: 5 });
   assert.deepEqual(e.provisioning.steps.map((x) => x.key), Object.values(STEP_KEY));

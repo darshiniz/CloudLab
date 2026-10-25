@@ -15,6 +15,7 @@ const activitySchema = z.object({
   labId: z.string().min(1),
   dueDate: z.string().refine((s) => !Number.isNaN(Date.parse(s)), { error: 'must be an ISO date' }),
   datasetId: z.string().min(1).nullish(),
+  maxMarks: z.number().int().min(1).max(1000).default(100),
   assignTo: z.object({
     type: z.enum(['class', 'students']),
     studentIds: z.array(z.string()).max(500).default([]),
@@ -23,23 +24,24 @@ const activitySchema = z.object({
 
 module.exports = (ctx) => {
   const r = express.Router();
-  const { db } = ctx;
+  const { db, storage } = ctx;
   r.use('/faculty', authenticate(ctx));
 
   // ---- activities -----------------------------------------------------------------------------
-  /** Progress is derived from labs: see CONTRACT_NOTES.md ("Activity progress"). */
+  /** Progress: completed = submitted, inProgress = started a lab but not submitted yet (CONTRACT_NOTES.md, "Activity progress"). */
   async function progressFor(rows) {
     if (!rows.length) return new Map();
     const students = await db('users').where({ role: ROLE.STUDENT, status: USER_STATUS.ACTIVE }).pluck('id');
+    const subs = await db('submissions').whereIn('activity_id', rows.map((a) => a.id)).select('activity_id', 'user_id');
     const out = new Map();
     for (const a of rows) {
       const targets = a.assign_type === 'class' ? students : ser.parseJson(a.student_ids, []);
+      const submitted = new Set(subs.filter((x) => x.activity_id === a.id && targets.includes(x.user_id)).map((x) => x.user_id));
       const envs = targets.length
-        ? await db('environments').whereIn('user_id', targets).where({ lab_id: a.lab_id }).where('created_at', '>=', a.created_at).select('user_id', 'status')
+        ? await db('environments').whereIn('user_id', targets).where({ lab_id: a.lab_id }).where('created_at', '>=', a.created_at).pluck('user_id')
         : [];
-      const live = new Set(); const touched = new Set();
-      for (const e of envs) { touched.add(e.user_id); if (ACTIVE_STATUSES.includes(e.status)) live.add(e.user_id); }
-      out.set(a.id, { assigned: targets.length, inProgress: live.size, completed: [...touched].filter((u) => !live.has(u)).length });
+      const started = new Set(envs.filter((u) => !submitted.has(u)));
+      out.set(a.id, { assigned: targets.length, inProgress: started.size, completed: submitted.size });
     }
     return out;
   }
@@ -55,6 +57,72 @@ module.exports = (ctx) => {
     const a = await db('activities').where({ id: req.params.id }).where(listFilter(req)).first();
     if (!a) throw E.notFound('Activity not found');
     ok(res, ser.activity(a, (await progressFor([a])).get(a.id)));
+  });
+
+  /** Everyone the activity is assigned to, with their submission (if any). */
+  async function submissionRows(a) {
+    const targets = a.assign_type === 'class'
+      ? await db('users').where({ role: ROLE.STUDENT, status: USER_STATUS.ACTIVE }).pluck('id')
+      : ser.parseJson(a.student_ids, []);
+    const users = targets.length ? await db('users').whereIn('id', targets).orderBy('name') : [];
+    const subs = new Map((await db('submissions').where({ activity_id: a.id })).map((x) => [x.user_id, x]));
+    const started = new Set(targets.length
+      ? await db('environments').whereIn('user_id', targets).where({ lab_id: a.lab_id }).where('created_at', '>=', a.created_at).pluck('user_id')
+      : []);
+    return users.map((u) => {
+      const sub = subs.get(u.id);
+      return {
+        studentId: u.id, name: u.name, rollNo: u.roll_no, email: u.email,
+        status: sub ? 'submitted' : started.has(u.id) ? 'inProgress' : 'assigned',
+        submittedAt: sub ? pub(sub.submitted_at) : null,
+        late: sub ? new Date(sub.submitted_at) > new Date(a.due_date) : false,
+        note: sub?.note ?? null,
+        marks: sub?.marks ?? null, feedback: sub?.feedback ?? null, gradedAt: pub(sub?.graded_at) ?? null,
+        maxMarks: a.max_marks ?? 100,
+      };
+    });
+  }
+  async function submittedActivity(req) {
+    const a = await db('activities').where({ id: req.params.id }).where(listFilter(req)).first();
+    if (!a) throw E.notFound('Activity not found');
+    const sub = await db('submissions').where({ activity_id: a.id, user_id: req.params.studentId }).first();
+    if (!sub) throw E.notFound('This student has not submitted this activity');
+    return storage.projectsDir(req.params.studentId);
+  }
+
+  r.get('/faculty/activities/:id/submissions', requireRole(ROLE.FACULTY, ROLE.ADMIN), async (req, res) => {
+    const a = await db('activities').where({ id: req.params.id }).where(listFilter(req)).first();
+    if (!a) throw E.notFound('Activity not found');
+    ok(res, await submissionRows(a));
+  });
+
+  // Marks and written feedback for a submitted activity. The student sees them in their Assignments page.
+  r.put('/faculty/activities/:id/submissions/:studentId/grade', requireRole(ROLE.FACULTY, ROLE.ADMIN), async (req, res) => {
+    const a = await db('activities').where({ id: req.params.id }).where(listFilter(req)).first();
+    if (!a) throw E.notFound('Activity not found');
+    const max = a.max_marks ?? 100;
+    const b = parse(z.object({ marks: z.number().min(0).max(max), feedback: z.string().trim().max(2000).optional() }), req.body ?? {});
+    const sub = await db('submissions').where({ activity_id: a.id, user_id: req.params.studentId }).first();
+    if (!sub) throw E.notFound('This student has not submitted this activity');
+    await db('submissions').where({ id: sub.id }).update({ marks: b.marks, feedback: b.feedback || null, graded_by: req.user.id, graded_at: nowIso() });
+    await ctx.audit.log(req.user, 'assignment.grade', `${a.id} ${req.params.studentId}`);
+    const row = (await submissionRows(a)).find((x) => x.studentId === req.params.studentId);
+    ok(res, row);
+  });
+
+  // Read-only view of a student's workspace, only once that student has submitted.
+  r.get('/faculty/activities/:id/submissions/:studentId/files', requireRole(ROLE.FACULTY, ROLE.ADMIN), async (req, res) => {
+    const q = parse(z.object({ path: optStr }), req.query);
+    const base = await submittedActivity(req);
+    paged(res, pageOf(await storage.listDir(base, q.path || '/'), req.query));
+  });
+
+  r.get('/faculty/activities/:id/submissions/:studentId/files/download', requireRole(ROLE.FACULTY, ROLE.ADMIN), async (req, res) => {
+    const q = parse(z.object({ path: z.string().min(1) }), req.query);
+    const base = await submittedActivity(req);
+    const file = await storage.resolveFile(base, q.path);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.download(file, require('path').basename(file), (err) => { if (err && !res.headersSent) throw E.notFound('File not found'); });
   });
 
   r.post('/faculty/activities', requireRole(ROLE.FACULTY), async (req, res) => {
@@ -75,7 +143,7 @@ module.exports = (ctx) => {
     }
     const row = {
       id: newId('activity'), title: b.title, description: b.description, lab_id: b.labId, dataset_id: b.datasetId ?? null,
-      due_date: new Date(b.dueDate).toISOString(), assign_type: b.assignTo.type, student_ids: JSON.stringify(studentIds),
+      due_date: new Date(b.dueDate).toISOString(), max_marks: b.maxMarks, assign_type: b.assignTo.type, student_ids: JSON.stringify(studentIds),
       created_by: req.user.id, created_at: nowIso(),
     };
     await db('activities').insert(row);

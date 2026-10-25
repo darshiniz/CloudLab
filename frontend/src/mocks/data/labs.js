@@ -23,10 +23,10 @@ export const labs = [
   },
   {
     id: 'lab_datascience', name: 'Data Science', type: 'datascience',
-    description: 'Jupyter, Scikit-learn and visualisation libraries',
-    tools: ['Jupyter', 'Scikit-learn', 'Seaborn', 'Pandas'],
-    dockerImage: 'cloudlab/datascience:0.1', limits: { cpu: 2, memoryGb: 2, storageGb: 5 },
-    enabled: true, comingSoon: true,
+    description: 'Python and R for data analysis, statistics and machine learning, with JupyterLab',
+    tools: ['Python 3', 'pandas', 'scikit-learn', 'statsmodels', 'JupyterLab', 'R'],
+    dockerImage: 'cloudlab/datascience:1.0', limits: { cpu: 2, memoryGb: 2, storageGb: 5 },
+    enabled: true, comingSoon: false,
   },
   {
     id: 'lab_cloud', name: 'Cloud Computing', type: 'cloud',

@@ -9,7 +9,7 @@ const { createWorkspaceProxy } = require('./proxy/workspace');
 
 // Endpoints whose JSON body is required: an absent body is BAD_REQUEST (contract section 6).
 const NEEDS_BODY = [
-  ['POST', /^\/auth\/login$/], ['POST', /^\/environments$/], ['POST', /^\/environments\/[^/]+\/datasets$/],
+  ['POST', /^\/auth\/login$/], ['POST', /^\/auth\/register$/], ['POST', /^\/environments$/], ['POST', /^\/environments\/[^/]+\/datasets$/],
   ['POST', /^\/labs$/], ['PATCH', /^\/labs\/[^/]+$/], ['POST', /^\/projects$/],
   ['POST', /^\/admin\/users$/], ['PATCH', /^\/admin\/users\/[^/]+$/], ['PUT', /^\/admin\/(policy|settings|scaling)$/],
   ['POST', /^\/faculty\/activities$/],

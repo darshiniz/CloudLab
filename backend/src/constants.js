@@ -2,7 +2,7 @@
 const freeze = (o) => Object.freeze(o);
 
 const ROLE = freeze({ STUDENT: 'student', FACULTY: 'faculty', ADMIN: 'admin' });
-const USER_STATUS = freeze({ ACTIVE: 'active', INACTIVE: 'inactive' });
+const USER_STATUS = freeze({ ACTIVE: 'active', INACTIVE: 'inactive', PENDING: 'pending', REJECTED: 'rejected' });
 const LAB_TYPE = freeze({ PYTHON: 'python', JAVA: 'java', WEB: 'web', DATASCIENCE: 'datascience', CLOUD: 'cloud' });
 const ENV_STATUS = freeze({
   REQUESTED: 'requested', QUEUED: 'queued', PROVISIONING: 'provisioning', RUNNING: 'running',
@@ -26,6 +26,7 @@ const ERR = freeze({
   STORAGE_QUOTA_EXCEEDED: 'STORAGE_QUOTA_EXCEEDED', VALIDATION_ERROR: 'VALIDATION_ERROR',
   CAPACITY_FULL: 'CAPACITY_FULL', INTERNAL_ERROR: 'INTERNAL_ERROR',
   RATE_LIMITED: 'RATE_LIMITED', // addition, see CONTRACT_NOTES.md
+  REGISTRATION_CLOSED: 'REGISTRATION_CLOSED', // addition: student cap reached
 });
 
 const values = (o) => Object.values(o);

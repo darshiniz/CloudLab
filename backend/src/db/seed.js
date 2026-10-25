@@ -10,7 +10,7 @@ const LABS = [
   { id: 'lab_python', name: 'Python Lab', type: 'python', description: 'Python 3 with Jupyter-ready data science libraries.', tools: ['Python 3.12', 'pip', 'pandas', 'numpy', 'scikit-learn'], image: 'cloudlab/python:1.0', enabled: 1, soon: 0 },
   { id: 'lab_java', name: 'Java Lab', type: 'java', description: 'JDK 21 with Maven and Gradle.', tools: ['OpenJDK 21', 'Maven', 'Gradle'], image: 'cloudlab/java:1.0', enabled: 1, soon: 0 },
   { id: 'lab_web', name: 'Web Dev Lab', type: 'web', description: 'Node.js and a static web server for HTML, CSS and JavaScript.', tools: ['Node.js 22', 'npm', 'HTML/CSS/JS'], image: 'cloudlab/web:1.0', enabled: 1, soon: 0 },
-  { id: 'lab_datascience', name: 'Data Science Lab', type: 'datascience', description: 'Coming soon.', tools: ['Python', 'R'], image: 'cloudlab/datascience:1.0', enabled: 1, soon: 1 },
+  { id: 'lab_datascience', name: 'Data Science Lab', type: 'datascience', description: 'Python and R for data analysis, statistics and machine learning, with JupyterLab.', tools: ['Python 3', 'pandas', 'scikit-learn', 'statsmodels', 'JupyterLab', 'R'], image: 'cloudlab/datascience:1.0', enabled: 1, soon: 0 },
   { id: 'lab_cloud', name: 'Cloud Lab', type: 'cloud', description: 'Coming soon.', tools: ['gcloud', 'Terraform'], image: 'cloudlab/cloud:1.0', enabled: 1, soon: 1 },
 ];
 
@@ -31,7 +31,14 @@ async function seed(ctx) {
 
   const now = nowIso();
   for (const l of LABS) {
-    if (await db('labs').where({ id: l.id }).first()) continue;
+    const have = await db('labs').where({ id: l.id }).first();
+    if (have) {
+      // Data Science used to be "coming soon": switch an existing database over once, without touching anything an admin edited later.
+      if (l.id === 'lab_datascience' && have.coming_soon && have.description === 'Coming soon.') {
+        await db('labs').where({ id: l.id }).update({ coming_soon: 0, description: l.description, tools: JSON.stringify(l.tools) });
+      }
+      continue;
+    }
     await db('labs').insert({
       id: l.id, name: l.name, type: l.type, description: l.description, tools: JSON.stringify(l.tools), docker_image: l.image,
       cpu: 2, memory_gb: 2, storage_gb: 5, enabled: l.enabled, coming_soon: l.soon, created_at: now,

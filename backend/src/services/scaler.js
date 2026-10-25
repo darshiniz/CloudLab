@@ -130,6 +130,30 @@ class Scaler {
     } finally { this.busy.delete(nodeId); }
   }
 
+  /**
+   * Keeps the app's idea of each worker's power in line with the real VM, so the daily schedule (VMs started at
+   * 08:50 and shut down at 17:00 by Azure, outside this app) does not leave a worker marked "off" while it runs or
+   * "on" while it is deallocated. Runs whether or not auto-scaling is switched on. Skips workers that changed state
+   * in the last few minutes, because Azure reports the old power state for a while after start/deallocate requests.
+   */
+  async syncPower(now = Date.now()) {
+    if (!this.available) return;
+    const states = await this.states();
+    for (const w of this.ctx.cfg.workers) {
+      const st = states.get(w.id);
+      if (!st || this.busy.has(w.id) || now - Date.parse(st.changed_at) < 5 * 60_000) continue;
+      let vm;
+      try { vm = await this.cloud.powerState(w.vmName); } catch (e) { this.ctx.log.warn({ err: e.message, vm: w.vmName }, 'could not read VM power state'); continue; }
+      if ((st.state === POWER.OFF) && vm === 'running') {
+        await this._set(w.id, POWER.STARTING); // the monitor marks it on once Docker answers
+        await this._event(w.id, 'scale_out', 'schedule', 'VM was started outside the app (daily schedule or portal)', true);
+      } else if (st.state === POWER.ON && ['deallocated', 'deallocating', 'stopped', 'stopping'].includes(vm)) {
+        await this._set(w.id, POWER.OFF);
+        await this._event(w.id, 'scale_in', 'schedule', 'VM was stopped outside the app (daily schedule or portal)', true);
+      }
+    }
+  }
+
   /** One decision cycle. `now` is injectable for tests. */
   async tick(now = Date.now()) {
     if (!this.available || !(await this.autoEnabled())) { this.queueSince = null; this.idleSince.clear(); return; }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { Check, UserPlus, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { ROLE } from '../../constants/enums';
 import { useAuth } from '../../context/AuthContext';
@@ -7,7 +7,7 @@ import useQuery from '../../hooks/useQuery';
 import useAction from '../../hooks/useAction';
 import { useToast } from '../../context/ToastContext';
 import { Avatar, Button, Card, DataTable, Field, Input, Modal, Mono, PageHeader, RoleBadge, Select, StatusBadge, Toggle } from '../../components/ui';
-import { capitalize, timeAgo } from '../../utils/format';
+import { capitalize, formatDateTime, timeAgo } from '../../utils/format';
 
 const EMPTY = { name: '', email: '', role: 'student', password: '', rollNo: '' };
 
@@ -22,6 +22,7 @@ export default function Users() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const rows = users.data?.data ?? [];
+  const pending = rows.filter((u) => u.status === 'pending');
 
   const patch = (u, changes, msg) => run(`${u.id}:patch`, () => api.updateUser(u.id, changes), { success: msg, after: users.refresh });
 
@@ -46,9 +47,14 @@ export default function Users() {
     { key: 'lastActiveAt', header: 'Last active', render: (u) => timeAgo(u.lastActiveAt), hideOnMobile: true },
     { key: 'status', header: 'Status', render: (u) => (
       <div className="flex items-center gap-3">
-        <Toggle checked={u.status === 'active'} label={`${u.name} active`} disabled={u.id === me.id || busy === `${u.id}:patch`}
-          onChange={(on) => patch(u, { status: on ? 'active' : 'inactive' }, on ? `${u.name} activated` : `${u.name} deactivated`)} />
-        <StatusBadge status={u.status} />
+        {['active', 'inactive'].includes(u.status) && (
+          <Toggle checked={u.status === 'active'} label={`${u.name} active`} disabled={u.id === me.id || busy === `${u.id}:patch`}
+            onChange={(on) => patch(u, { status: on ? 'active' : 'inactive' }, on ? `${u.name} activated` : `${u.name} deactivated`)} />
+        )}
+        <div>
+          <StatusBadge status={u.status} />
+          {u.approvedBy && <p className="mt-0.5 text-[11px] text-gray-600">Approved by {u.approvedBy}</p>}
+        </div>
       </div>
     ) },
     { key: 'change', header: 'Change role', sortable: false, render: (u) => (
@@ -62,7 +68,24 @@ export default function Users() {
   const count = (r) => (users.data?.data ?? []).filter((u) => u.role === r).length;
   return (
     <>
-      <PageHeader title="User Management" description="Accounts are created by admins. There is no public sign-up." actions={<Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add user</Button>} />
+      <PageHeader title="User Management" description="Students can register themselves; their accounts stay Pending until you approve them. You can also add users directly." actions={<Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add user</Button>} />
+      {pending.length > 0 && (
+        <Card title="Waiting for approval" subtitle={`${pending.length} new registration${pending.length > 1 ? 's' : ''}`} className="mb-6">
+          <ul className="divide-y divide-line">
+            {pending.map((u) => (
+              <li key={u.id} className="flex flex-wrap items-center gap-3 py-3">
+                <Avatar name={u.name} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white">{u.name} <span className="ml-1 font-mono text-xs text-gray-600">{u.rollNo}</span></p>
+                  <p className="text-xs text-gray-500">{u.email} · registered {formatDateTime(u.createdAt)}</p>
+                </div>
+                <Button size="sm" icon={Check} loading={busy === `${u.id}:patch`} onClick={() => patch(u, { status: 'active' }, `${u.name} approved`)}>Approve</Button>
+                <Button size="sm" variant="secondary" icon={X} disabled={busy === `${u.id}:patch`} onClick={() => patch(u, { status: 'rejected' }, `${u.name} rejected`)}>Reject</Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <Card padded={false}>
         <DataTable columns={columns} rows={rows} loading={users.loading} searchKeys={['name', 'email', 'rollNo']} searchPlaceholder="Search name, email, roll no…" pageSize={12}
           toolbar={<Select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Filter by role" className="h-9 w-40">

@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 REGISTRY="${REGISTRY:-cloudlab}"
-for lab in python java web; do
+for lab in ${LABS:-python java web datascience}; do   # LABS="datascience" builds only that one
   # Local tag cloudlab/<lab>:1.0 is what the database's docker_image column refers to.
   docker build -f infra/images/$lab/Dockerfile -t "cloudlab/$lab:1.0" .
   if [ "${1:-}" = push ]; then

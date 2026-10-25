@@ -22,6 +22,7 @@ const E = {
   validation: (details, m = 'Validation failed') => new ApiError(422, ERR.VALIDATION_ERROR, m, details),
   capacityFull: () =>
     new ApiError(503, ERR.CAPACITY_FULL, 'All servers are at capacity and the queue is full. Please try again in a few minutes.'),
+  registrationClosed: (m) => new ApiError(403, ERR.REGISTRATION_CLOSED, m),
   rateLimited: () => new ApiError(429, ERR.RATE_LIMITED, 'Too many requests. Please slow down.'),
 };
 

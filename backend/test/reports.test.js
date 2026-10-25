@@ -73,11 +73,11 @@ test('activities: faculty create, validation, progress, admin read-only', async 
   const body = { title: 'Loops', description: 'Practise loops', labId: 'lab_python', dueDate: '2026-12-01T10:00:00Z', datasetId: 'ds_iris', assignTo: { type: 'students', studentIds: [t.ids.darshini, t.ids.anushka] } };
   const c = await f.post('/faculty/activities', body);
   assert.equal(c.status, 201);
-  assert.deepEqual(Object.keys(c.body.data).sort(), ['assignTo', 'createdAt', 'createdBy', 'datasetId', 'description', 'dueDate', 'id', 'labId', 'progress', 'title']);
+  assert.deepEqual(Object.keys(c.body.data).sort(), ['assignTo', 'createdAt', 'createdBy', 'datasetId', 'description', 'dueDate', 'id', 'labId', 'maxMarks', 'progress', 'title']);
   assert.deepEqual(c.body.data.assignTo.studentIds.sort(), [t.ids.anushka, t.ids.darshini].sort());
   assert.deepEqual(c.body.data.progress, { assigned: 2, inProgress: 0, completed: 0 });
 
-  // progress follows the labs students create for that template after the activity was assigned
+  // progress: "in progress" follows the labs students start for that template, "completed" follows Submit
   const d = await t.as(t.emails.darshini);
   const a = await t.as(t.emails.anushka);
   const l1 = (await createLab(d, { name: 'activity lab' })).body.data.id;
@@ -85,7 +85,10 @@ test('activities: faculty create, validation, progress, admin read-only', async 
   await waitStatus(t.ctx, l1, 'running');
   await waitStatus(t.ctx, l2, 'running');
   await a.post(`/environments/${l2}/stop`);
-  const got = (await f.get(`/faculty/activities/${c.body.data.id}`)).body.data;
+  let got = (await f.get(`/faculty/activities/${c.body.data.id}`)).body.data;
+  assert.deepEqual(got.progress, { assigned: 2, inProgress: 2, completed: 0 }); // started, nobody has submitted yet
+  await a.post(`/assignments/${c.body.data.id}/submit`, {});
+  got = (await f.get(`/faculty/activities/${c.body.data.id}`)).body.data;
   assert.deepEqual(got.progress, { assigned: 2, inProgress: 1, completed: 1 });
 
   const everyone = (await f.post('/faculty/activities', { ...body, title: 'Whole class', datasetId: null, assignTo: { type: 'class', studentIds: [] } })).body.data;

@@ -3,7 +3,7 @@
 
 export const ROLE = Object.freeze({ STUDENT: 'student', FACULTY: 'faculty', ADMIN: 'admin' });
 
-export const USER_STATUS = Object.freeze({ ACTIVE: 'active', INACTIVE: 'inactive' });
+export const USER_STATUS = Object.freeze({ ACTIVE: 'active', INACTIVE: 'inactive', PENDING: 'pending', REJECTED: 'rejected' });
 
 export const LAB_TYPE = Object.freeze({
   PYTHON: 'python',
@@ -63,6 +63,7 @@ export const ERROR_CODE = Object.freeze({
   NOT_FOUND: 'NOT_FOUND',
   INVALID_STATE: 'INVALID_STATE',
   EMAIL_EXISTS: 'EMAIL_EXISTS',
+  REGISTRATION_CLOSED: 'REGISTRATION_CLOSED',
   STORAGE_QUOTA_EXCEEDED: 'STORAGE_QUOTA_EXCEEDED',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   CAPACITY_FULL: 'CAPACITY_FULL',

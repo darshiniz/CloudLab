@@ -108,6 +108,7 @@ export const api = {
   // 7.1 Health and auth
   health: () => one(request('auth', 'GET', '/health')),
   login: (email, password) => one(request('auth', 'POST', '/auth/login', { body: { email, password } })),
+  register: ({ name, email, rollNo, password }) => one(request('auth', 'POST', '/auth/register', { body: { name, email, rollNo, password } })),
   me: () => one(request('auth', 'GET', '/auth/me')),
   logout: () => request('auth', 'POST', '/auth/logout'),
 
@@ -158,7 +159,14 @@ export const api = {
   getStudent: (id) => one(request('faculty', 'GET', `/faculty/students/${id}`)),
   // Activities assigned to the signed-in student (addition, see backend docs/CONTRACT_NOTES.md)
   listAssignments: () => request('assignments', 'GET', '/assignments'),
+  submitAssignment: (id, note) => one(request('assignments', 'POST', `/assignments/${id}/submit`, { body: note ? { note } : {} })),
   listActivities: () => request('faculty', 'GET', '/faculty/activities'),
+  // Who has submitted an activity, and a read-only view of a submitted student's files (faculty and admin)
+  gradeSubmission: (activityId, studentId, { marks, feedback }) =>
+    one(request('faculty', 'PUT', `/faculty/activities/${activityId}/submissions/${studentId}/grade`, { body: { marks, feedback: feedback || undefined } })),
+  listSubmissions: (activityId) => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions`),
+  listSubmissionFiles: (activityId, studentId, path = '/') => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions/${studentId}/files`, { query: { path } }),
+  downloadSubmissionFile: (activityId, studentId, path) => request('faculty', 'GET', `/faculty/activities/${activityId}/submissions/${studentId}/files/download`, { query: { path }, download: true }),
   createActivity: (activity) => one(request('faculty', 'POST', '/faculty/activities', { body: activity })),
   getActivity: (id) => one(request('faculty', 'GET', `/faculty/activities/${id}`)),
   listSessions: (query) => request('faculty', 'GET', '/faculty/sessions', { query }),

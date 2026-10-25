@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CalendarClock, ClipboardList, Database, ExternalLink, Play, User } from 'lucide-react';
+import { Award, CalendarClock, CheckCircle2, ClipboardList, Database, ExternalLink, Play, Send, Terminal, User } from 'lucide-react';
 import { api } from '../../services/api';
 import useQuery from '../../hooks/useQuery';
-import { Button, Card, EmptyState, PageHeader, Skeleton, StatusBadge } from '../../components/ui';
+import { useToast } from '../../context/ToastContext';
+import { Banner, Button, Card, EmptyState, Field, Modal, PageHeader, Skeleton, StatusBadge, Textarea } from '../../components/ui';
 import CreateLabModal from '../../components/labs/CreateLabModal';
 import LabIcon from '../../components/labs/LabIcon';
 import { cx, formatDateTime, timeAgo } from '../../utils/format';
 
-const STATUS_LABEL = { assigned: 'Not started', inProgress: 'In progress', completed: 'Done' };
+const STATUS_LABEL = { assigned: 'Not started', inProgress: 'In progress', submitted: 'Submitted' };
 
-function Assignment({ a, onStart, onOpen }) {
-  const done = a.status === 'completed';
+function Assignment({ a, onStart, onOpen, onMyLabs, onSubmit }) {
+  const submitted = a.status === 'submitted';
   return (
     <motion.li initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-line bg-white/[0.02] p-4">
       <div className="flex flex-wrap items-start gap-3">
@@ -28,32 +29,62 @@ function Assignment({ a, onStart, onOpen }) {
             {a.dataset && <span className="flex items-center gap-1"><Database className="h-3.5 w-3.5" />{a.dataset.name}</span>}
             {a.assignedBy && <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{a.assignedBy} · {timeAgo(a.createdAt)}</span>}
           </p>
+          {submitted && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-gray-400">
+              <CheckCircle2 className="h-3.5 w-3.5 text-status-running" />
+              Submitted {formatDateTime(a.submission.submittedAt)}{a.submission.late ? ' · late' : ''}
+              {a.submission.note && <span className="text-gray-500">· “{a.submission.note}”</span>}
+            </p>
+          )}
+          {submitted && (a.submission.marks != null ? (
+            <div className="mt-3 rounded-xl border border-status-running/30 bg-status-running/5 p-3">
+              <p className="flex items-center gap-2 text-sm font-medium text-white"><Award className="h-4 w-4 text-status-running" />Marks: {a.submission.marks} / {a.maxMarks}</p>
+              {a.submission.feedback && <p className="mt-1 whitespace-pre-line text-sm text-gray-300">{a.submission.feedback}</p>}
+            </div>
+          ) : <p className="mt-2 text-xs text-gray-600">Not graded yet.</p>)}
         </div>
         <StatusBadge status={a.status} label={STATUS_LABEL[a.status]} />
       </div>
-      {!done && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {a.status === 'inProgress' && a.environmentId
-            ? <Button size="sm" icon={ExternalLink} onClick={() => onOpen(a)}>Open lab</Button>
-            : <Button size="sm" icon={Play} onClick={() => onStart(a)}>Start lab</Button>}
-        </div>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {a.status === 'assigned' && <Button size="sm" icon={Play} onClick={() => onStart(a)}>Start lab</Button>}
+        {a.status === 'inProgress' && (a.liveEnvironmentId
+          ? <Button size="sm" variant="secondary" icon={ExternalLink} onClick={() => onOpen(a)}>Open lab</Button>
+          : <Button size="sm" variant="secondary" icon={Terminal} onClick={onMyLabs}>Resume in My Labs</Button>)}
+        <Button size="sm" variant={submitted ? 'secondary' : 'primary'} icon={Send} onClick={() => onSubmit(a)}>{submitted ? 'Update submission' : 'Submit'}</Button>
+      </div>
     </motion.li>
   );
 }
 
-/** Activities faculty assigned to this student. "Start lab" opens Create Lab with the right template already chosen. */
+/** Activities faculty assigned to this student. Work is saved in your workspace; press Submit when you are finished. */
 export default function Assignments() {
   const navigate = useNavigate();
+  const toast = useToast();
   const list = useQuery(() => api.listAssignments(), [], { interval: 10000 });
   const labs = useQuery(() => api.listLabs(), []);
   const [starting, setStarting] = useState(null);
+  const [submitting, setSubmitting] = useState(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const items = list.data?.data ?? [];
-  const todo = useMemo(() => items.filter((a) => a.status !== 'completed'), [items]);
-  const done = useMemo(() => items.filter((a) => a.status === 'completed'), [items]);
+  const todo = useMemo(() => items.filter((a) => a.status !== 'submitted'), [items]);
+  const done = useMemo(() => items.filter((a) => a.status === 'submitted'), [items]);
   const labList = labs.data?.data;
   const initialLab = starting && labList ? labList.find((l) => l.id === starting.lab.id) : undefined;
+
+  const openSubmit = (a) => { setSubmitting(a); setNote(a.submission?.note ?? ''); };
+  const confirmSubmit = async () => {
+    setSaving(true);
+    try {
+      await api.submitAssignment(submitting.id, note.trim());
+      toast.success(submitting.status === 'submitted' ? 'Submission updated' : 'Submitted. Your faculty can now see your work.');
+      setSubmitting(null);
+      list.refresh();
+    } catch (err) { toast.apiError(err); } finally { setSaving(false); }
+  };
+
+  const row = (a) => <Assignment key={a.id} a={a} onStart={setStarting} onOpen={(x) => navigate(`/student/workspace/${x.liveEnvironmentId}`)} onMyLabs={() => navigate('/student/labs')} onSubmit={openSubmit} />;
 
   return (
     <>
@@ -64,17 +95,20 @@ export default function Assignments() {
         <Card><EmptyState icon={ClipboardList} title="Nothing assigned yet" message="When a faculty member assigns you an activity, it appears here with its due date." /></Card>
       ) : (
         <div className="space-y-6">
+          <Banner tone="info">Your files are saved in your workspace, so you can stop a lab and carry on another day. Press <b>Submit</b> when you are finished.</Banner>
           <Card title="To do" subtitle={`${todo.length} open`}>
-            {todo.length ? <ul className="space-y-3">{todo.map((a) => <Assignment key={a.id} a={a} onStart={setStarting} onOpen={(x) => navigate(`/student/workspace/${x.environmentId}`)} />)}</ul>
-              : <p className="text-sm text-gray-500">You are all caught up.</p>}
+            {todo.length ? <ul className="space-y-3">{todo.map(row)}</ul> : <p className="text-sm text-gray-500">You are all caught up.</p>}
           </Card>
-          {done.length > 0 && (
-            <Card title="Done" subtitle={`${done.length} finished`}>
-              <ul className="space-y-3">{done.map((a) => <Assignment key={a.id} a={a} />)}</ul>
-            </Card>
-          )}
+          {done.length > 0 && <Card title="Submitted" subtitle={`${done.length} handed in`}><ul className="space-y-3">{done.map(row)}</ul></Card>}
         </div>
       )}
+
+      <Modal open={!!submitting} onClose={() => setSubmitting(null)} title={submitting?.status === 'submitted' ? 'Update submission' : 'Submit activity'} description={submitting?.title}
+        footer={<><Button variant="secondary" onClick={() => setSubmitting(null)}>Cancel</Button><Button icon={Send} loading={saving} onClick={confirmSubmit}>{submitting?.status === 'submitted' ? 'Update' : 'Submit'}</Button></>}>
+        <p className="mb-4 text-sm text-gray-400">Your faculty will be able to open the files in your workspace as they are now. You can add a note for them.</p>
+        <Field label="Note (optional)" htmlFor="sub-note"><Textarea id="sub-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={1000} placeholder="Anything your faculty should know?" /></Field>
+      </Modal>
+
       <CreateLabModal open={!!starting} onClose={() => setStarting(null)} labs={labList} initialLab={initialLab} onCreated={list.refresh} />
     </>
   );

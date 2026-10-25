@@ -106,6 +106,7 @@ export default function Login() {
               </button>
             ))}
           </div>
+          <p className="mt-5 text-center text-sm text-gray-500">New student? <Link to="/register" className="text-accent hover:underline">Create an account</Link></p>
           {isMocked('auth') && (
             <p className="mt-5 text-center text-xs text-gray-600">Mock mode · student123 / faculty123 / admin123</p>
           )}

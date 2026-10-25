@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lab: [python, java, web]
+        lab: [python, java, web, datascience]
     steps:
       - uses: actions/checkout@v4
       - name: Build ${{ matrix.lab }} image

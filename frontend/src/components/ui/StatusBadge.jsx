@@ -17,6 +17,8 @@ const STYLES = {
   offline: 'bg-red-500/10 text-red-300 ring-red-500/30',
   // users
   active: 'bg-green-500/10 text-green-300 ring-green-500/30',
+  pending: 'bg-yellow-500/10 text-yellow-300 ring-yellow-500/30',
+  rejected: 'bg-red-500/10 text-red-300 ring-red-500/30',
   // activities
   assigned: 'bg-blue-500/10 text-blue-300 ring-blue-500/30',
   inProgress: 'bg-cyan-500/10 text-cyan-300 ring-cyan-500/30',

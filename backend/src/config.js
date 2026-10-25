@@ -121,6 +121,13 @@ function loadConfig(env = process.env) {
       defaultMaxLabsPerWorker: int('DEFAULT_MAX_LABS_PER_WORKER', 4),
     },
 
+    registration: {
+      enabled: bool('REGISTRATION_ENABLED', true),
+      emailDomain: str('REGISTRATION_EMAIL_DOMAIN', 'gbs.edu').toLowerCase().replace(/^@/, ''), // empty = any address
+      maxStudents: int('REGISTRATION_MAX_STUDENTS', 15), // active + pending students
+      ratePerMin: int('REGISTRATION_RATE_PER_MIN', 10), // BRD FR-15: 10 requests/min per IP
+    },
+
     jobs: {
       enabled: bool('JOBS_ENABLED', true),
       autoStopIntervalMs: int('AUTOSTOP_INTERVAL_MS', 60_000),

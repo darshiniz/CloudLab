@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 
-const PREFIX = { user: 'usr', lab: 'lab', env: 'env', project: 'prj', dataset: 'ds', activity: 'act' };
+const PREFIX = { user: 'usr', lab: 'lab', env: 'env', project: 'prj', dataset: 'ds', activity: 'act', submission: 'sub' };
 
 function newId(kind) {
   const p = PREFIX[kind];

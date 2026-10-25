@@ -8,6 +8,11 @@ async function createTable(knex, name, build) {
   if (!(await knex.schema.hasTable(name))) await knex.schema.createTable(name, build);
 }
 
+/** Adds a column to a table created by an earlier version (createTable only builds missing tables). */
+async function addColumn(knex, table, column, build) {
+  if (!(await knex.schema.hasColumn(table, column))) await knex.schema.alterTable(table, (t) => build(t));
+}
+
 async function migrate(knex) {
   await createTable(knex, 'users', (t) => {
     ID(t).primary();
@@ -222,6 +227,27 @@ async function migrate(knex) {
     t.integer('id').primary();
     t.integer('auto_enabled').notNullable().defaultTo(0);
   });
+
+  // A student's submission for an activity (one per student per activity; submitting again updates it).
+  await createTable(knex, 'submissions', (t) => {
+    ID(t).primary();
+    ID(t, 'activity_id').notNullable();
+    ID(t, 'user_id').notNullable();
+    t.text('note').nullable();
+    TS(t, 'submitted_at').notNullable();
+    t.unique(['activity_id', 'user_id']);
+    t.index(['user_id']);
+  });
+
+  // Added after the first release: registration approval and marks/feedback. Safe to run on an existing database.
+  await addColumn(knex, 'users', 'approved_by', (t) => ID(t, 'approved_by').nullable());
+  await addColumn(knex, 'users', 'approved_at', (t) => TS(t, 'approved_at').nullable());
+  await addColumn(knex, 'users', 'self_registered', (t) => t.integer('self_registered').notNullable().defaultTo(0));
+  await addColumn(knex, 'activities', 'max_marks', (t) => t.integer('max_marks').notNullable().defaultTo(100));
+  await addColumn(knex, 'submissions', 'marks', (t) => t.float('marks').nullable());
+  await addColumn(knex, 'submissions', 'feedback', (t) => t.text('feedback').nullable());
+  await addColumn(knex, 'submissions', 'graded_by', (t) => ID(t, 'graded_by').nullable());
+  await addColumn(knex, 'submissions', 'graded_at', (t) => TS(t, 'graded_at').nullable());
 
   await createTable(knex, 'scaling_events', (t) => {
     t.increments('seq');

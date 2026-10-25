@@ -1,47 +1,122 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const { boot, createLab, waitStatus } = require('./helpers');
 
 let t;
 test.before(async () => { t = await boot(); });
 test.after(async () => { await t.close(); });
 
-test('students see only the activities assigned to them, with their own progress', async () => {
+const base = { description: 'Do it', labId: 'lab_python', dueDate: '2099-01-01T10:00:00Z', datasetId: 'ds_iris' };
+const mk = async (f, over) => (await f.post('/faculty/activities', { ...base, ...over })).body.data;
+
+test('students see only their activities; status follows their own work and the Submit button', async () => {
   const f = await t.as(t.emails.faculty);
   const d = await t.as(t.emails.darshini);
   const a = await t.as(t.emails.anushka);
-  const base = { description: 'Do it', labId: 'lab_python', dueDate: '2099-01-01T10:00:00Z', datasetId: 'ds_iris' };
-  const some = (await f.post('/faculty/activities', { ...base, title: 'Only Darshini', assignTo: { type: 'students', studentIds: [t.ids.darshini] } })).body.data;
-  const all = (await f.post('/faculty/activities', { ...base, title: 'Whole class', datasetId: null, assignTo: { type: 'class', studentIds: [] } })).body.data;
+  const some = await mk(f, { title: 'Only Darshini', assignTo: { type: 'students', studentIds: [t.ids.darshini] } });
+  const all = await mk(f, { title: 'Whole class', datasetId: null, assignTo: { type: 'class', studentIds: [] } });
+  const find = async (c, id) => (await c.get('/assignments')).body.data.find((x) => x.id === id);
 
-  const mineD = (await d.get('/assignments')).body.data;
-  const mineA = (await a.get('/assignments')).body.data;
-  assert.ok(mineD.some((x) => x.id === some.id));
-  assert.ok(!mineA.some((x) => x.id === some.id), 'not assigned to Anushka');
-  assert.ok(mineA.some((x) => x.id === all.id));
+  assert.ok(await find(d, some.id));
+  assert.equal(await find(a, some.id), undefined, 'not assigned to Anushka');
+  assert.ok(await find(a, all.id));
 
-  const row = mineD.find((x) => x.id === some.id);
-  assert.deepEqual(Object.keys(row).sort(), ['assignedBy', 'createdAt', 'dataset', 'description', 'dueDate', 'environmentId', 'id', 'lab', 'overdue', 'status', 'title']);
+  const row = await find(d, some.id);
+  assert.deepEqual(Object.keys(row).sort(), ['assignedBy', 'createdAt', 'dataset', 'description', 'dueDate', 'environmentId', 'id', 'lab', 'liveEnvironmentId', 'maxMarks', 'overdue', 'status', 'submission', 'title']);
   assert.equal(row.status, 'assigned');
-  assert.equal(row.environmentId, null);
-  assert.equal(row.overdue, false);
+  assert.equal(row.submission, null);
   assert.equal(row.lab.type, 'python');
   assert.ok(row.dataset.mountPath.startsWith('/data/shared/'));
-  assert.equal(mineD.find((x) => x.id === all.id).dataset, null);
 
-  // progress is per student and follows that student's own labs
+  // starting a lab makes it inProgress, and it STAYS inProgress after the lab stops (stopping is not finishing)
   const lab = (await createLab(d, { name: 'activity lab' })).body.data.id;
   await waitStatus(t.ctx, lab, 'running');
-  let now = (await d.get('/assignments')).body.data.find((x) => x.id === some.id);
+  let now = await find(d, some.id);
   assert.equal(now.status, 'inProgress');
-  assert.equal(now.environmentId, lab);
-  assert.equal((await a.get('/assignments')).body.data.find((x) => x.id === all.id).status, 'assigned');
+  assert.equal(now.liveEnvironmentId, lab);
+  assert.equal((await find(a, all.id)).status, 'assigned');
   await d.post(`/environments/${lab}/stop`);
-  now = (await d.get('/assignments')).body.data.find((x) => x.id === some.id);
-  assert.equal(now.status, 'completed');
+  now = await find(d, some.id);
+  assert.equal(now.status, 'inProgress');
+  assert.equal(now.liveEnvironmentId, null);
+
+  // submit
+  const sub = await d.post(`/assignments/${some.id}/submit`, { note: 'first part done' });
+  assert.equal(sub.status, 201);
+  assert.equal(sub.body.data.status, 'submitted');
+  assert.equal(sub.body.data.submission.note, 'first part done');
+  assert.equal(sub.body.data.submission.late, false);
+  const again = await d.post(`/assignments/${some.id}/submit`, { note: 'updated' });
+  assert.equal(again.status, 200);
+  assert.equal(again.body.data.submission.note, 'updated');
+  assert.equal(await t.ctx.db('submissions').where({ activity_id: some.id }).count({ n: '*' }).first().then((x) => Number(x.n)), 1);
+  assert.equal((await find(a, all.id)).status, 'assigned', 'Anushka is unaffected');
+
+  // not yours, unknown, wrong role
+  assert.equal((await a.post(`/assignments/${some.id}/submit`, {})).status, 404);
+  assert.equal((await d.post('/assignments/act_nope/submit', {})).status, 404);
+  assert.equal((await d.post(`/assignments/${all.id}/submit`, { note: 'x'.repeat(1001) })).status, 422);
+  assert.equal((await f.post(`/assignments/${some.id}/submit`, {})).status, 403);
 });
 
-test('only students can use the endpoint', async () => {
+test('late submissions are flagged', async () => {
+  const f = await t.as(t.emails.faculty);
+  const d = await t.as(t.emails.darshini);
+  const act = await mk(f, { title: 'Past due', dueDate: new Date(Date.now() + 1000).toISOString(), assignTo: { type: 'students', studentIds: [t.ids.darshini] } });
+  await new Promise((r) => setTimeout(r, 1200));
+  const r = (await d.get('/assignments')).body.data.find((x) => x.id === act.id);
+  assert.equal(r.overdue, true);
+  const s = (await d.post(`/assignments/${act.id}/submit`, {})).body.data;
+  assert.equal(s.submission.late, true);
+  assert.equal(s.overdue, false, 'submitted work is not overdue');
+});
+
+test('faculty see who submitted, and can read a submitted student\'s files (read-only, only after submit)', async () => {
+  const f = await t.as(t.emails.faculty);
+  const d = await t.as(t.emails.darshini);
+  const f2 = await t.as(t.emails.admin);
+  const act = await mk(f, { title: 'With files', assignTo: { type: 'students', studentIds: [t.ids.darshini, t.ids.anushka] } });
+  const files = (sid, p = '') => f.get(`/faculty/activities/${act.id}/submissions/${sid}/files${p}`);
+
+  let rows = (await f.get(`/faculty/activities/${act.id}/submissions`)).body.data;
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((x) => x.status), ['assigned', 'assigned']);
+  assert.deepEqual(Object.keys(rows[0]).sort(), ['email', 'feedback', 'gradedAt', 'late', 'marks', 'maxMarks', 'name', 'note', 'rollNo', 'status', 'studentId', 'submittedAt']);
+  assert.deepEqual((await f.get(`/faculty/activities/${act.id}`)).body.data.progress, { assigned: 2, inProgress: 0, completed: 0 });
+  assert.equal((await files(t.ids.darshini)).status, 404, 'not submitted yet');
+
+  await t.ctx.storage.ensureStudent(t.ids.darshini);
+  const dir = t.ctx.storage.projectsDir(t.ids.darshini);
+  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'main.py'), 'print("hello")\n');
+  fs.writeFileSync(path.join(dir, 'src', 'util.py'), 'x = 1\n');
+  await d.post(`/assignments/${act.id}/submit`, { note: 'please check' });
+
+  rows = (await f.get(`/faculty/activities/${act.id}/submissions`)).body.data;
+  const dr = rows.find((x) => x.studentId === t.ids.darshini);
+  assert.equal(dr.status, 'submitted');
+  assert.equal(dr.note, 'please check');
+  assert.equal(rows.find((x) => x.studentId === t.ids.anushka).status, 'assigned');
+  assert.deepEqual((await f.get(`/faculty/activities/${act.id}`)).body.data.progress, { assigned: 2, inProgress: 0, completed: 1 });
+
+  const top = (await files(t.ids.darshini)).body.data;
+  assert.ok(top.some((x) => x.name === 'main.py' && x.type === 'file'));
+  assert.ok(top.some((x) => x.name === 'src' && x.type === 'folder'));
+  assert.deepEqual((await files(t.ids.darshini, '?path=/src')).body.data.map((x) => x.name), ['util.py']);
+  const dl = await f.get(`/faculty/activities/${act.id}/submissions/${t.ids.darshini}/files/download?path=/main.py`);
+  assert.equal(dl.status, 200);
+  assert.match(dl.text ?? String(dl.body), /hello/);
+  assert.equal((await files(t.ids.darshini, '?path=/../..')).status >= 400, true, 'cannot escape the student folder');
+  assert.equal((await files(t.ids.anushka)).status, 404, 'Anushka has not submitted');
+
+  // another faculty member's activities are not visible; admin may read; students may not
+  assert.equal((await f2.get(`/faculty/activities/${act.id}/submissions`)).status, 200);
+  assert.equal((await d.get(`/faculty/activities/${act.id}/submissions`)).status, 403);
+});
+
+test('only students can use the assignments endpoints', async () => {
   assert.equal((await (await t.as(t.emails.faculty)).get('/assignments')).status, 403);
   assert.equal((await (await t.as(t.emails.admin)).get('/assignments')).status, 403);
   assert.equal((await t.raw.get(`${t.API}/assignments`)).status, 401);

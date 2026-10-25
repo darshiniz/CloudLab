@@ -3,6 +3,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Landing from './pages/public/Landing';
 import Login from './pages/public/Login';
+import Register from './pages/public/Register';
 import NotFound from './pages/public/NotFound';
 // Student
 import StudentOverview from './pages/student/Overview';
@@ -37,6 +38,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* Student: full-screen workspace sits outside the dashboard frame */}
       <Route path="/student/workspace/:id" element={guard(['student'], <Workspace />)} />

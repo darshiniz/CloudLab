@@ -29,6 +29,7 @@ class Jobs {
       ['autostop', () => this.autoStop.tick(), jobs.autoStopIntervalMs],
       ['queue', () => this.ctx.envs.processQueue(), jobs.queueIntervalMs],
       ['autoscale', () => this.ctx.scaler.tick(), this.ctx.cfg.autoscale.intervalMs],
+      ['powersync', () => this.ctx.scaler.syncPower(), 60_000],
       ['purge', () => this.ctx.auth.purgeRevoked(), 3600_000],
     ];
     for (const [name, fn, every] of defs) {

@@ -58,3 +58,41 @@ The frontend's `src/mocks/server.js` was run next to this backend and the JSON s
 * **The Workspace page showed a fake editor.** With the real backend it needs an iframe on `access.workspaceUrl` (already applied in `frontend/`). In dev the page (`:5173`) and the lab (`:5000`) are the same *site*, so the lab cookie works inside the iframe; in production nginx serves both from one origin.
 * The Policy page text says "after 10 min with no heartbeat it becomes inactive"; the backend's warning window is the last 5 minutes before the idle limit (`INACTIVE_WARNING_MINUTES`).
 * Demo accounts match the frontend's login page: `anushka@gbs.edu`/`student123`, `sonia@gbs.edu`/`faculty123`, `admin@gbs.edu`/`admin123`.
+
+## Assignments and submissions (student view of faculty activities) - addition
+
+New table `submissions` (one row per student per activity; submitting again updates it).
+
+Student (`student` role only; 401 without a token, 403 otherwise):
+
+* `GET /api/v1/assignments`: activities assigned to the signed-in student (whole class, or naming the student), by due date.
+  `{ id, title, description, dueDate, createdAt, assignedBy, lab: {id,name,type}, dataset: {id,name,mountPath} | null, status, submission: {submittedAt,note,late} | null, overdue, liveEnvironmentId, environmentId }`
+  `status`: `assigned` (no lab started for it), `inProgress` (a lab of the activity's template was created after the activity was assigned, even if it is stopped now), `submitted` (the student pressed Submit).
+* `POST /api/v1/assignments/:id/submit` `{ note? }` (note max 1000 chars): 201 on first submit, 200 when updating. 404 if the activity is not assigned to the student.
+
+Faculty (own activities) and admin (read-only):
+
+* `GET /faculty/activities/:id/submissions`: every assigned student with `status`, `submittedAt`, `late`, `note`.
+* `GET /faculty/activities/:id/submissions/:studentId/files?path=` and `.../files/download?path=`: read-only view of that student's workspace, **only after the student has submitted** (404 before).
+
+**Activity progress** (`GET /faculty/activities`): `completed` = students who submitted, `inProgress` = students who started a lab but have not submitted, `assigned` = everyone the activity is for.
+
+## Self-registration with admin approval (BRD FR-14, FR-15) - addition
+
+* `POST /api/v1/auth/register` `{ name, email, rollNo, password }` (public). Creates a **student** with `status: "pending"`; response 201 `{ id, status, message }`.
+  Rules: email must end in `@REGISTRATION_EMAIL_DOMAIN` (422 `email`), email and roll number unique (409 `EMAIL_EXISTS` / 422 `rollNo`), password 8-100 chars, at most `REGISTRATION_MAX_STUDENTS` (15) active+pending students (403 `REGISTRATION_CLOSED`, also when `REGISTRATION_ENABLED=false`), at most `REGISTRATION_RATE_PER_MIN` (10) requests per minute per IP (429).
+* `users.status` now also takes `pending` and `rejected`. Login answers 403 with a clear message for both. Pending/rejected accounts never hold a token, so every other endpoint is closed to them.
+* Admin approves or rejects with the existing `PATCH /admin/users/:id { status: "active" | "rejected" }`; `GET /admin/users?status=pending` lists the queue. Approving records who and when.
+* User object additions: `selfRegistered` (bool), `approvedBy` (admin name or null), `approvedAt`.
+
+## Marks and feedback - addition
+
+* `POST /faculty/activities` accepts `maxMarks` (integer 1-1000, default 100). Activity objects carry `maxMarks`.
+* `PUT /faculty/activities/:id/submissions/:studentId/grade` `{ marks, feedback? }`: faculty (owner of the activity) only; 404 until the student has submitted; 422 when `marks` is outside `0..maxMarks`. Returns the student's submission row. Grading again replaces the previous grade; a student resubmitting does not erase it.
+* Submission rows (faculty) gain `marks`, `feedback`, `gradedAt`, `maxMarks`. The student's `GET /assignments` rows gain `maxMarks` and `submission.{marks, feedback, gradedAt}` (null until graded).
+
+## Other additions
+
+* Environment objects carry `stopReason` (`user | idle | memory_limit | scheduled | admin | ...`, only while `status` is `stopped`; otherwise null). Used by the T-05 test.
+* **Data Science** lab is now available (`comingSoon: false`; image `cloudlab/datascience:1.0`). An existing database is switched over once at start-up if the template still has the old "Coming soon." text.
+* **Power sync**: the autoscaler compares each worker's recorded power state with the real VM once a minute, so VMs started or stopped by the daily schedule (08:50 / 17:00) are not mistaken for failures. These show in the scaling log with source `schedule`.

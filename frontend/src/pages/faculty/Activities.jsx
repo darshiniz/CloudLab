@@ -6,12 +6,13 @@ import useQuery from '../../hooks/useQuery';
 import { useToast } from '../../context/ToastContext';
 import { Banner, Button, Card, EmptyState, Field, Input, PageHeader, Select, Skeleton, StatusBadge, Textarea } from '../../components/ui';
 import LabIcon from '../../components/labs/LabIcon';
+import SubmissionsModal from '../../components/faculty/SubmissionsModal';
 import { cx, formatDateTime, timeAgo } from '../../utils/format';
 
 const tomorrow = () => { const d = new Date(Date.now() + 7 * 864e5); d.setHours(18, 0, 0, 0); return d.toISOString().slice(0, 16); };
-const EMPTY = { title: '', description: '', labId: 'lab_python', dueDate: tomorrow(), datasetId: '', assignType: 'class', studentIds: [] };
+const EMPTY = { title: '', description: '', labId: 'lab_python', dueDate: tomorrow(), datasetId: '', maxMarks: 100, assignType: 'class', studentIds: [] };
 
-function ActivityRow({ a, labs, datasets }) {
+function ActivityRow({ a, labs, datasets, onOpen }) {
   const { assigned, inProgress, completed } = a.progress;
   const started = inProgress + completed;
   const status = completed === assigned ? 'completed' : started ? 'inProgress' : 'assigned';
@@ -34,13 +35,14 @@ function ActivityRow({ a, labs, datasets }) {
         <StatusBadge status={status} />
       </div>
       <div className="mt-4">
-        <div className="mb-1.5 flex justify-between text-xs"><span className="text-gray-400">{started} of {assigned} students started</span><span className="font-mono text-gray-500">{completed} done</span></div>
+        <div className="mb-1.5 flex justify-between text-xs"><span className="text-gray-400">{started} of {assigned} students started</span><span className="font-mono text-gray-500">{completed} submitted</span></div>
         <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
           <div className="bg-status-running transition-all duration-700" style={{ width: `${(completed / assigned) * 100}%` }} />
           <div className="bg-status-provisioning transition-all duration-700" style={{ width: `${(inProgress / assigned) * 100}%` }} />
         </div>
         <div className="mt-2 flex gap-2 text-[11px]">
-          <StatusBadge status="assigned" label={`Assigned ${assigned}`} /><StatusBadge status="inProgress" label={`In progress ${inProgress}`} /><StatusBadge status="completed" label={`Completed ${completed}`} />
+          <StatusBadge status="assigned" label={`Assigned ${assigned}`} /><StatusBadge status="inProgress" label={`In progress ${inProgress}`} /><StatusBadge status="completed" label={`Submitted ${completed}`} />
+          <Button size="sm" variant="secondary" className="ml-auto" onClick={() => onOpen(a)}>View submissions</Button>
         </div>
       </div>
     </li>
@@ -54,6 +56,7 @@ export default function Activities() {
   const labs = useQuery(() => api.listLabs(), []);
   const datasets = useQuery(() => api.listDatasets('shared'), []);
   const students = useQuery(() => api.listStudents({ pageSize: 100 }), []);
+  const [viewing, setViewing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -68,7 +71,7 @@ export default function Activities() {
     try {
       await api.createActivity({
         title: form.title, description: form.description, labId: form.labId, dueDate: new Date(form.dueDate).toISOString(),
-        datasetId: form.datasetId || null, assignTo: { type: form.assignType, studentIds: form.assignType === 'students' ? form.studentIds : [] },
+        datasetId: form.datasetId || null, maxMarks: Number(form.maxMarks) || 100, assignTo: { type: form.assignType, studentIds: form.assignType === 'students' ? form.studentIds : [] },
       });
       toast.success('Activity assigned');
       setForm(EMPTY); setErrors({});
@@ -92,6 +95,7 @@ export default function Activities() {
                 <Field label="Lab template" htmlFor="a-lab" error={errors.labId}><Select id="a-lab" value={form.labId} onChange={set('labId')}>{labList.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
                 <Field label="Due date" htmlFor="a-due" error={errors.dueDate}><Input id="a-due" type="datetime-local" value={form.dueDate} onChange={set('dueDate')} invalid={!!errors.dueDate} /></Field>
               </div>
+              <Field label="Maximum marks" htmlFor="a-max" error={errors.maxMarks} hint="Marks are entered per student under View submissions"><Input id="a-max" type="number" min="1" max="1000" value={form.maxMarks} onChange={set('maxMarks')} invalid={!!errors.maxMarks} /></Field>
               <Field label="Dataset (optional)" htmlFor="a-ds">
                 <Select id="a-ds" value={form.datasetId} onChange={set('datasetId')}><option value="">No dataset</option>{(datasets.data?.data ?? []).map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select>
               </Field>
@@ -118,11 +122,12 @@ export default function Activities() {
         </Card>
         <Card title="Assigned activities" className="lg:col-span-3" action={<span className="text-xs text-gray-500">{activities.data?.meta?.total ?? 0} total</span>}>
           {activities.loading ? <div className="space-y-3">{[1, 2].map((i) => <Skeleton key={i} className="h-36" />)}</div> : activities.data.data.length ? (
-            <ul className="space-y-3">{activities.data.data.map((a) => <ActivityRow key={a.id} a={a} labs={labs.data?.data ?? []} datasets={datasets.data?.data ?? []} />)}</ul>
+            <ul className="space-y-3">{activities.data.data.map((a) => <ActivityRow key={a.id} a={a} labs={labs.data?.data ?? []} datasets={datasets.data?.data ?? []} onOpen={setViewing} />)}</ul>
           ) : <EmptyState icon={ClipboardList} title="No activities yet" message="Assign your first lab activity using the form." />}
           {activities.data?.data.length > 0 && <p className="mt-4 text-xs text-gray-600">Newest first · created {timeAgo(activities.data.data[0].createdAt)}</p>}
         </Card>
       </div>
+      <SubmissionsModal activity={viewing} onClose={() => { setViewing(null); activities.refresh(); }} />
     </>
   );
 }

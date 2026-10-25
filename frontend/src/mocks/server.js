@@ -260,6 +260,26 @@ const studentHours = (userId) => {
 };
 
 // ── Routes: [method, path, allowedRoles | 'public' | 'any', handler] ────────
+/** One activity as the signed-in student sees it (shared by the mock assignments endpoints). */
+function assignmentView(a, user) {
+  const lab = db.labs.find((l) => l.id === a.labId);
+  const ds = a.datasetId ? db.datasets.find((d) => d.id === a.datasetId) : null;
+  const mine = db.environments.filter((e) => e.userId === user.id && e.labId === a.labId && e.createdAt >= a.createdAt).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
+  const live = mine.find((e) => [ENV_STATUS.REQUESTED, ENV_STATUS.QUEUED, ENV_STATUS.PROVISIONING, ENV_STATUS.RUNNING, ENV_STATUS.INACTIVE].includes(e.status));
+  const sub = (db.submissions ?? []).find((x) => x.activityId === a.id && x.userId === user.id);
+  return {
+    id: a.id, title: a.title, description: a.description, dueDate: a.dueDate, createdAt: a.createdAt,
+    assignedBy: db.users.find((u) => u.id === a.createdBy)?.name ?? null,
+    lab: lab ? { id: lab.id, name: lab.name, type: lab.type } : { id: a.labId, name: a.labId, type: null },
+    dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
+    status: sub ? 'submitted' : mine.length ? 'inProgress' : 'assigned',
+    maxMarks: a.maxMarks ?? 100,
+    submission: sub ? { submittedAt: sub.submittedAt, note: sub.note, late: new Date(sub.submittedAt) > new Date(a.dueDate), marks: sub.marks ?? null, feedback: sub.feedback ?? null, gradedAt: sub.gradedAt ?? null } : null,
+    overdue: !sub && new Date(a.dueDate) < new Date(),
+    liveEnvironmentId: live?.id ?? null, environmentId: (live || mine[0])?.id ?? null,
+  };
+}
+
 const S = ROLE.STUDENT, F = ROLE.FACULTY, A = ROLE.ADMIN;
 const routes = [
   // 7.1 Health and auth
@@ -268,9 +288,26 @@ const routes = [
     if (!body?.email || !body?.password) fail(400, E.BAD_REQUEST, 'Email and password are required');
     const u = db.users.find((x) => x.email === String(body.email).trim().toLowerCase());
     if (!u || u.password !== body.password) fail(401, E.INVALID_CREDENTIALS, 'Wrong email or password');
+    if (u.status === USER_STATUS.PENDING) fail(403, E.FORBIDDEN, 'Your registration is waiting for administrator approval.');
+    if (u.status === USER_STATUS.REJECTED) fail(403, E.FORBIDDEN, 'Your registration was not approved. Contact the administrator.');
     if (u.status !== USER_STATUS.ACTIVE) fail(403, E.FORBIDDEN, 'This account has been deactivated. Contact the lab admin.');
     u.lastActiveAt = nowIso();
     return ok({ token: makeToken(u), expiresIn: TOKEN_TTL, user: publicUser(u) });
+  }],
+  ['POST', '/auth/register', 'public', ({ body }) => {
+    const email = String(body?.email ?? '').trim().toLowerCase();
+    validate([
+      ['name', 'is required', !body?.name?.trim() || body.name.trim().length < 2],
+      ['email', 'must be an @gbs.edu address', !/^[^@\s]+@gbs\.edu$/.test(email)],
+      ['rollNo', 'is required', !body?.rollNo?.trim()],
+      ['password', 'must be at least 8 characters', (body?.password ?? '').length < 8],
+    ]);
+    if (db.users.some((u) => u.email === email)) fail(409, E.EMAIL_EXISTS, 'A user with this email already exists');
+    if (db.users.some((u) => u.rollNo === body.rollNo.trim())) fail(422, E.VALIDATION_ERROR, 'Validation failed', { rollNo: 'is already used by another student' });
+    if (db.users.filter((u) => u.role === S && [USER_STATUS.ACTIVE, USER_STATUS.PENDING].includes(u.status)).length >= 15) fail(403, E.REGISTRATION_CLOSED, 'Registration is closed: the limit of 15 students has been reached.');
+    const u = { id: nextId('usr'), name: body.name.trim(), email, role: S, status: USER_STATUS.PENDING, rollNo: body.rollNo.trim(), createdAt: nowIso(), lastActiveAt: null, password: body.password, selfRegistered: true, approvedBy: null, approvedAt: null };
+    db.users.push(u);
+    return ok({ id: u.id, status: u.status, message: 'Registration received. You can sign in once an administrator approves your account.' }, 201);
   }],
   ['GET', '/auth/me', 'any', ({ user }) => ok(publicUser(user))],
   ['POST', '/auth/logout', 'any', () => noContent()],
@@ -544,24 +581,60 @@ const routes = [
       ],
     });
   }],
-  // Activities assigned to the signed-in student, with that student's own progress
+  // Activities assigned to the signed-in student, with that student's own progress and submission
   ['GET', '/assignments', [S], ({ user }) => ok(db.activities
     .filter((a) => a.assignTo.type === 'class' || a.assignTo.studentIds.includes(user.id))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .map((a) => {
-      const lab = db.labs.find((l) => l.id === a.labId);
-      const ds = a.datasetId ? db.datasets.find((d) => d.id === a.datasetId) : null;
-      const mine = db.environments.filter((e) => e.userId === user.id && e.labId === a.labId && e.createdAt >= a.createdAt).sort((x, y) => y.createdAt.localeCompare(x.createdAt));
-      const live = mine.find((e) => [ENV_STATUS.REQUESTED, ENV_STATUS.QUEUED, ENV_STATUS.PROVISIONING, ENV_STATUS.RUNNING, ENV_STATUS.INACTIVE].includes(e.status));
-      const status = live ? 'inProgress' : mine.length ? 'completed' : 'assigned';
+    .map((a) => assignmentView(a, user))) ],
+  ['POST', '/assignments/:id/submit', [S], ({ user, params, body }) => {
+    const a = db.activities.find((x) => x.id === params.id && (x.assignTo.type === 'class' || x.assignTo.studentIds.includes(user.id))) ?? notFound('Activity');
+    if ((body?.note ?? '').length > 1000) fail(422, E.VALIDATION_ERROR, 'Validation failed', { note: 'is too long' });
+    db.submissions ??= [];
+    const existing = db.submissions.find((x) => x.activityId === a.id && x.userId === user.id);
+    if (existing) Object.assign(existing, { note: body?.note?.trim() || null, submittedAt: nowIso() });
+    else {
+      db.submissions.push({ activityId: a.id, userId: user.id, note: body?.note?.trim() || null, submittedAt: nowIso() });
+      a.progress.completed += 1;
+      if (a.progress.inProgress > 0) a.progress.inProgress -= 1;
+    }
+    return ok(assignmentView(a, user), existing ? 200 : 201);
+  }],
+  ['GET', '/faculty/activities/:id/submissions', [F, A], ({ params }) => {
+    const a = db.activities.find((x) => x.id === params.id) ?? notFound('Activity');
+    const targets = db.users.filter((u) => u.role === S && u.status === 'active' && (a.assignTo.type === 'class' || a.assignTo.studentIds.includes(u.id)));
+    return ok(targets.map((u) => {
+      const sub = (db.submissions ?? []).find((x) => x.activityId === a.id && x.userId === u.id);
+      const started = db.environments.some((e) => e.userId === u.id && e.labId === a.labId && e.createdAt >= a.createdAt);
       return {
-        id: a.id, title: a.title, description: a.description, dueDate: a.dueDate, createdAt: a.createdAt,
-        assignedBy: db.users.find((u) => u.id === a.createdBy)?.name ?? null,
-        lab: lab ? { id: lab.id, name: lab.name, type: lab.type } : { id: a.labId, name: a.labId, type: null },
-        dataset: ds ? { id: ds.id, name: ds.name, mountPath: `/data/shared/${ds.name}` } : null,
-        status, overdue: status !== 'completed' && new Date(a.dueDate) < new Date(), environmentId: (live || mine[0])?.id ?? null,
+        studentId: u.id, name: u.name, rollNo: u.rollNo ?? null, email: u.email,
+        status: sub ? 'submitted' : started ? 'inProgress' : 'assigned',
+        submittedAt: sub?.submittedAt ?? null, late: sub ? new Date(sub.submittedAt) > new Date(a.dueDate) : false, note: sub?.note ?? null,
+        marks: sub?.marks ?? null, feedback: sub?.feedback ?? null, gradedAt: sub?.gradedAt ?? null, maxMarks: a.maxMarks ?? 100,
       };
-    }))],
+    }));
+  }],
+  ['PUT', '/faculty/activities/:id/submissions/:studentId/grade', [F, A], ({ params, body }) => {
+    const a = db.activities.find((x) => x.id === params.id) ?? notFound('Activity');
+    const sub = (db.submissions ?? []).find((x) => x.activityId === a.id && x.userId === params.studentId) ?? notFound('Submission');
+    const max = a.maxMarks ?? 100;
+    validate([['marks', `must be a number from 0 to ${max}`, typeof body?.marks !== 'number' || body.marks < 0 || body.marks > max]]);
+    Object.assign(sub, { marks: body.marks, feedback: body.feedback?.trim() || null, gradedAt: nowIso() });
+    const u = db.users.find((x) => x.id === params.studentId);
+    return ok({ studentId: u.id, name: u.name, rollNo: u.rollNo ?? null, email: u.email, status: 'submitted', submittedAt: sub.submittedAt, late: new Date(sub.submittedAt) > new Date(a.dueDate), note: sub.note ?? null, marks: sub.marks, feedback: sub.feedback, gradedAt: sub.gradedAt, maxMarks: max });
+  }],
+  ['GET', '/faculty/activities/:id/submissions/:studentId/files', [F, A], ({ params, query }) => {
+    if (!(db.submissions ?? []).some((x) => x.activityId === params.id && x.userId === params.studentId)) notFound('Submission');
+    const t = new Date().toISOString();
+    const tree = {
+      '/': [{ name: 'main.py', path: '/main.py', type: 'file', sizeBytes: 1840, modifiedAt: t }, { name: 'notes.txt', path: '/notes.txt', type: 'file', sizeBytes: 96, modifiedAt: t }, { name: 'src', path: '/src', type: 'folder', sizeBytes: 0, modifiedAt: t }],
+      '/src': [{ name: 'util.py', path: '/src/util.py', type: 'file', sizeBytes: 420, modifiedAt: t }],
+    };
+    return paginate(tree[query.path || '/'] ?? notFound('Path'), { pageSize: 100 });
+  }],
+  ['GET', '/faculty/activities/:id/submissions/:studentId/files/download', [F, A], ({ query }) => {
+    const name = String(query.path).split('/').pop();
+    return { status: 200, blob: new Blob([`# ${name}\n# Mock download from CloudLab\n`], { type: 'text/plain' }), filename: name };
+  }],
   ['GET', '/faculty/activities', [F, A], () => paginate([...db.activities].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), { pageSize: 100 })],
   ['POST', '/faculty/activities', [F], ({ user, body }) => {
     validate([
@@ -573,7 +646,7 @@ const routes = [
     const count = body.assignTo.type === 'class' ? db.users.filter((u) => u.role === S && u.status === 'active').length : body.assignTo.studentIds.length;
     const act = {
       id: nextId('act'), title: body.title.trim(), description: body.description ?? '', labId: body.labId, datasetId: body.datasetId || null,
-      dueDate: body.dueDate, assignTo: { type: body.assignTo.type, studentIds: body.assignTo.type === 'students' ? body.assignTo.studentIds : [] },
+      dueDate: body.dueDate, maxMarks: Number.isInteger(body.maxMarks) ? body.maxMarks : 100, assignTo: { type: body.assignTo.type, studentIds: body.assignTo.type === 'students' ? body.assignTo.studentIds : [] },
       progress: { assigned: count, inProgress: 0, completed: 0 }, createdBy: user.id, createdAt: nowIso(),
     };
     db.activities.push(act);
@@ -685,9 +758,10 @@ const routes = [
     const u = db.users.find((x) => x.id === params.id) ?? notFound('User');
     validate([
       ['role', 'must be student, faculty or admin', body?.role !== undefined && !Object.values(ROLE).includes(body.role)],
-      ['status', 'must be active or inactive', body?.status !== undefined && !Object.values(USER_STATUS).includes(body.status)],
+      ['status', 'must be active, inactive, pending or rejected', body?.status !== undefined && !Object.values(USER_STATUS).includes(body.status)],
     ]);
     if (u.id === user.id && (body.status === 'inactive' || (body.role && body.role !== A))) fail(409, E.INVALID_STATE, "You can't deactivate or demote your own account");
+    if (body.status === USER_STATUS.ACTIVE && [USER_STATUS.PENDING, USER_STATUS.REJECTED].includes(u.status)) { u.approvedBy = user.name; u.approvedAt = nowIso(); }
     for (const k of ['name', 'role', 'status']) if (body[k] !== undefined) u[k] = body[k];
     if (u.role !== S) u.rollNo = null;
     audit(user, 'user.update', `${u.id} ${Object.keys(body).map((k) => `${k}=${body[k]}`).join(', ')}`);

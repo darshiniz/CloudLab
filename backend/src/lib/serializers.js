@@ -7,6 +7,7 @@ const parseJson = (s, d) => { try { return s ? JSON.parse(s) : d; } catch { retu
 const user = (r) => ({
   id: r.id, name: r.name, email: r.email, role: r.role, status: r.status,
   rollNo: r.roll_no ?? null, createdAt: pub(r.created_at), lastActiveAt: pub(r.last_active_at),
+  selfRegistered: !!r.self_registered, approvedBy: r.approved_by_name ?? null, approvedAt: pub(r.approved_at),
 });
 
 const lab = (r) => ({
@@ -36,6 +37,8 @@ const env = (r, { queuePosition = null, policy } = {}) => {
     provisioning: { currentStep: r.current_step, steps: parseJson(r.steps_json, []) },
     usage: { cpuPercent: live ? Math.round(r.usage_cpu) : 0, memoryPercent: live ? Math.round(r.usage_mem) : 0 },
     failureReason: r.status === ENV_STATUS.FAILED ? r.failure_reason ?? 'Provisioning failed' : null,
+    stopReason: r.status === ENV_STATUS.STOPPED ? r.stop_reason ?? null : null, // user | idle | memory_limit | scheduled | admin | ...
+
     createdAt: pub(r.created_at), startedAt: pub(r.started_at), stoppedAt: pub(r.stopped_at),
     lastActivityAt: pub(r.last_activity_at), autoStopAt: autoStopAt(r, policy),
   };
@@ -54,7 +57,7 @@ const dataset = (r) => ({
 
 const activity = (r, progress) => ({
   id: r.id, title: r.title, description: r.description, labId: r.lab_id, datasetId: r.dataset_id ?? null,
-  dueDate: pub(r.due_date),
+  dueDate: pub(r.due_date), maxMarks: r.max_marks ?? 100,
   assignTo: { type: r.assign_type, studentIds: r.assign_type === 'students' ? parseJson(r.student_ids, []) : [] },
   progress, createdBy: r.created_by, createdAt: pub(r.created_at),
 });

@@ -319,5 +319,56 @@ Only instance 1 runs the background jobs (monitor, auto-stop, queue, autoscaler)
 
 ## C. CI and deployment
 
-`.github/workflows/ci.yml` runs on every push: backend tests, frontend build, shell script syntax check and the three lab image builds (see the Actions tab on GitHub).
+`.github/workflows/ci.yml` runs on every push: backend tests, frontend build, shell script syntax check and the four lab image builds (see the Actions tab on GitHub).
 To deploy new code on the control VM: `cd ~/cloudlab && bash infra/deploy.sh`.
+
+# Part 3: Registration, Data Science lab, daily schedule, weekly backup, resource tests
+
+## D. Data Science lab image (once, then after every Dockerfile change)
+
+**(VM) worker-1:**
+```bash
+cd ~/cloudlab && git pull
+LABS=datascience bash infra/images/build.sh        # 10-15 min the first time (Python libraries + R)
+```
+Copy it to worker-2 (**(VM) control**, same pattern as Part 9):
+```bash
+sudo -u cloudlab sh -c "ssh cloudlab@WORKER1_PRIVATE_IP 'docker save cloudlab/datascience:1.0' | ssh cloudlab@WORKER2_PRIVATE_IP 'docker load'"
+```
+Then deploy the new code (`bash infra/deploy.sh`). On first start the existing "Data Science" template switches from "Coming soon" to available by itself.
+
+## E. Self-registration (admin approval)
+
+Nothing to install. Settings in `/etc/cloudlab/api.env` (all optional, defaults shown): `REGISTRATION_ENABLED=true`, `REGISTRATION_EMAIL_DOMAIN=gbs.edu`, `REGISTRATION_MAX_STUDENTS=15`, `REGISTRATION_RATE_PER_MIN=10`. Set `REGISTRATION_ENABLED=false` to close registration (for example after the class is full or after the course).
+
+Because the 15-student cap counts **active + pending** students, the existing demo accounts count too. If you have more than 15 student accounts today the page will say registration is closed; raise `REGISTRATION_MAX_STUDENTS` or deactivate unused accounts.
+
+## F. Daily schedule (08:50 start, 16:55 lab stop, 17:00 shutdown) and weekly backup
+
+**(VM) control**, once:
+```bash
+cd ~/cloudlab && git pull
+sudo bash infra/azure/schedule-setup.sh
+```
+This turns on the app's scheduled lab shutdown (`SCHEDULED_STOP_ENABLED=true`, 16:55 IST), installs the weekly backup timer (Fridays 16:30 IST, newest 4 archives kept in `/mnt/cloudlab/archive`) and restarts the API. Test the backup straight away:
+```bash
+sudo systemctl start cloudlab-backup && sudo journalctl -u cloudlab-backup -n 20 --no-pager
+ls -lh /mnt/cloudlab/archive
+```
+
+**(Windows PowerShell)**, once, to start and stop the VMs themselves:
+```powershell
+az login
+.\infra\azure\vm-schedule.ps1
+```
+It sets Azure's auto-shutdown to 17:00 IST on all three VMs and creates a small Automation account whose runbook starts them at 08:50 IST Monday to Friday. Run `.\infra\azure\vm-schedule.ps1 -Off` to remove the morning start (holidays, end of the project).
+
+Notes:
+* The 17:00 shutdown is a *deallocate*, so the VMs stop costing compute; the morning start needs the Automation account (a few cents a month).
+* The app notices VMs started or stopped by the schedule within a minute (scaling log lines with source "schedule"). Worker-2 comes back up at 08:50 even if the autoscaler had switched it off the day before.
+* The weekly archive stays in the same storage account (folder `archive/`). It protects against deleted or damaged files, not against losing the whole storage account.
+* Database backup is separate: Azure Database for MySQL keeps automatic backups (7 days by default).
+
+## G. Resource limit tests (BRD T-01 to T-05)
+
+See `docs/RESOURCE_TESTS.md`. Manual walk-throughs for assignments, marks, registration and the schedule are in `docs/MANUAL_TESTS.md`.
