@@ -17,7 +17,7 @@ sudo chown -R cloudlab:cloudlab "$APP"
 ( cd "$APP" && sudo -u cloudlab npm ci --omit=dev --no-audit --no-fund )
 
 echo "==> Frontend"
-( cd "$REPO/frontend" && npm ci --no-audit --no-fund && npm run build )
+( cd "$REPO/frontend" && npm ci --no-audit --no-fund && VITE_USE_MOCKS=false VITE_API_BASE_URL=/api/v1 npm run build )
 sudo mkdir -p "$WEB" && sudo rsync -a --delete "$REPO/frontend/dist/" "$WEB/"
 
 echo "==> Restarting"
